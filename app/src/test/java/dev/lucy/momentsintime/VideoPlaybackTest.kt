@@ -30,7 +30,7 @@ class VideoPlaybackTest {
         var videoPlaybackEnded = false
         var lastVideoName: String? = null
         val stateChangeLatch = CountDownLatch(1)
-        
+
         override fun playVideo(videoName: String) {
             lastVideoName = videoName
             videoPlaybackStarted = true
@@ -73,6 +73,10 @@ class VideoPlaybackTest {
             onVideoPlaybackEndedMethod.invoke(this)
             stateChangeLatch.countDown()
         }
+
+        fun testOnDestroy() {
+            super.onDestroy()
+        }
     }
     
     @Before
@@ -84,7 +88,7 @@ class VideoPlaybackTest {
     
     @After
     fun tearDown() {
-        testActivity.onDestroy()
+        testActivity.testOnDestroy()
     }
     
     @Test
