@@ -65,26 +65,48 @@ class AudioRecorder(private val context: Context) {
         }
         
         try {
+            Log.d(TAG, "Starting audio recording for participant $participantId, block $blockNumber, trial $trialNumber")
+            
             // Create output directory if it doesn't exist
             val outputDir = File(context.getExternalFilesDir(null), "audio")
             if (!outputDir.exists()) {
-                outputDir.mkdirs()
+                val created = outputDir.mkdirs()
+                Log.d(TAG, "Created output directory: $created")
             }
             
             // Create output file with naming convention
             val fileName = "participant_${participantId}_block_${blockNumber}_trial_${trialNumber}.wav"
             outputFile = File(outputDir, fileName)
+            Log.d(TAG, "Output file path: ${outputFile?.absolutePath}")
             
             // Check for recording permission
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) 
-                != PackageManager.PERMISSION_GRANTED) {
-                onError("Recording permission not granted")
+            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            Log.d(TAG, "RECORD_AUDIO permission check result: $permissionCheck")
+            
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                val errorMsg = "Recording permission not granted (result: $permissionCheck)"
+                Log.e(TAG, errorMsg)
+                onError(errorMsg)
                 releaseResources()
                 return
             }
             
             try {
-                // Initialize AudioRecord
+                // Initialize AudioRecord with explicit buffer size
+                val minBufferSize = AudioRecord.getMinBufferSize(
+                    SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT
+                )
+                
+                Log.d(TAG, "Minimum buffer size: $minBufferSize, using: $bufferSize")
+                
+                if (minBufferSize <= 0) {
+                    val errorMsg = "Invalid minimum buffer size: $minBufferSize"
+                    Log.e(TAG, errorMsg)
+                    onError(errorMsg)
+                    releaseResources()
+                    return
+                }
+                
                 audioRecord = AudioRecord(
                     MediaRecorder.AudioSource.MIC,
                     SAMPLE_RATE,
@@ -95,12 +117,30 @@ class AudioRecorder(private val context: Context) {
                 
                 // Check if AudioRecord was initialized properly
                 if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                    onError("Failed to initialize AudioRecord")
+                    val errorMsg = "Failed to initialize AudioRecord (state: ${audioRecord?.state})"
+                    Log.e(TAG, errorMsg)
+                    onError(errorMsg)
                     releaseResources()
                     return
                 }
+                
+                Log.d(TAG, "AudioRecord successfully initialized")
             } catch (e: SecurityException) {
-                onError("Security exception: Recording permission denied: ${e.message}")
+                val errorMsg = "Security exception: Recording permission denied: ${e.message}"
+                Log.e(TAG, errorMsg, e)
+                onError(errorMsg)
+                releaseResources()
+                return
+            } catch (e: IllegalArgumentException) {
+                val errorMsg = "Invalid AudioRecord parameters: ${e.message}"
+                Log.e(TAG, errorMsg, e)
+                onError(errorMsg)
+                releaseResources()
+                return
+            } catch (e: Exception) {
+                val errorMsg = "Error initializing AudioRecord: ${e.message}"
+                Log.e(TAG, errorMsg, e)
+                onError(errorMsg)
                 releaseResources()
                 return
             }

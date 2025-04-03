@@ -139,13 +139,22 @@ class ExperimentActivity : BaseExperimentActivity() {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         )
         
+        // Check each permission individually and log the result
+        permissions.forEach { permission ->
+            val isGranted = ContextCompat.checkSelfPermission(this, permission) == 
+                PackageManager.PERMISSION_GRANTED
+            Log.d("PermissionCheck", "$permission granted: $isGranted")
+        }
+        
         val permissionsToRequest = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }.toTypedArray()
         
         if (permissionsToRequest.isNotEmpty()) {
+            Log.d("PermissionCheck", "Requesting permissions: ${permissionsToRequest.joinToString()}")
             requestPermissionLauncher.launch(permissionsToRequest)
         } else {
+            Log.d("PermissionCheck", "All permissions already granted")
             permissionsGranted = true
         }
     }
@@ -344,12 +353,22 @@ class ExperimentActivity : BaseExperimentActivity() {
      * Start audio recording for the current trial
      */
     private fun startAudioRecording() {
-        if (!permissionsGranted) {
+        Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
+        
+        // Double-check permissions at runtime
+        val micPermission = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        
+        if (!micPermission) {
+            Log.e("ExperimentActivity", "Microphone permission is not granted at runtime check")
             Toast.makeText(
                 this,
-                "Cannot record audio: permissions not granted",
+                "Cannot record audio: microphone permission not granted",
                 Toast.LENGTH_LONG
             ).show()
+            
+            // Request permission again if needed
+            requestPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
             
             // Skip recording and move to next state after delay
             handler.postDelayed({
@@ -369,6 +388,7 @@ class ExperimentActivity : BaseExperimentActivity() {
             durationMs = config?.speechDurationMs ?: 3000,
             onComplete = { file ->
                 currentRecordingFile = file
+                Log.d("ExperimentActivity", "Recording completed successfully: ${file.absolutePath}")
                 runOnUiThread {
                     Toast.makeText(
                         this,
@@ -379,6 +399,7 @@ class ExperimentActivity : BaseExperimentActivity() {
                 }
             },
             onError = { error ->
+                Log.e("ExperimentActivity", "Recording error: $error")
                 runOnUiThread {
                     Toast.makeText(
                         this,
