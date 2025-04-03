@@ -1,12 +1,15 @@
 package dev.lucy.momentsintime
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -72,18 +75,32 @@ class AudioRecorder(private val context: Context) {
             val fileName = "participant_${participantId}_block_${blockNumber}_trial_${trialNumber}.wav"
             outputFile = File(outputDir, fileName)
             
-            // Initialize AudioRecord
-            audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE,
-                CHANNEL_CONFIG,
-                AUDIO_FORMAT,
-                bufferSize
-            )
+            // Check for recording permission
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) 
+                != PackageManager.PERMISSION_GRANTED) {
+                onError("Recording permission not granted")
+                releaseResources()
+                return
+            }
             
-            // Check if AudioRecord was initialized properly
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                onError("Failed to initialize AudioRecord")
+            try {
+                // Initialize AudioRecord
+                audioRecord = AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    SAMPLE_RATE,
+                    CHANNEL_CONFIG,
+                    AUDIO_FORMAT,
+                    bufferSize
+                )
+                
+                // Check if AudioRecord was initialized properly
+                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    onError("Failed to initialize AudioRecord")
+                    releaseResources()
+                    return
+                }
+            } catch (e: SecurityException) {
+                onError("Security exception: Recording permission denied: ${e.message}")
                 releaseResources()
                 return
             }
