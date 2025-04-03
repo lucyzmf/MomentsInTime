@@ -6,11 +6,15 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+@UnstableApi
 class ExperimentActivity : BaseExperimentActivity() {
     
     private lateinit var statusTextView: TextView
@@ -19,6 +23,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var timeTextView: TextView
     private lateinit var startButton: Button
     private lateinit var nextButton: Button
+    private lateinit var playerView: PlayerView
+    private lateinit var experimentContentTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -53,6 +59,11 @@ class ExperimentActivity : BaseExperimentActivity() {
         timeTextView = findViewById(R.id.timeTextView)
         startButton = findViewById(R.id.startButton)
         nextButton = findViewById(R.id.nextButton)
+        playerView = findViewById(R.id.playerView)
+        experimentContentTextView = findViewById(R.id.experimentContentTextView)
+        
+        // Connect player to view
+        playerView.player = player
         
         // Set up button listeners
         startButton.setOnClickListener {
@@ -159,6 +170,28 @@ class ExperimentActivity : BaseExperimentActivity() {
         blockTextView.text = "Block: $currentBlock / $totalBlocks"
         trialTextView.text = "Trial: $currentTrial / $trialsPerBlock"
         
+        // Update experiment content visibility
+        when (state) {
+            ExperimentState.TRIAL_VIDEO -> {
+                playerView.visibility = View.VISIBLE
+                experimentContentTextView.visibility = View.GONE
+            }
+            else -> {
+                playerView.visibility = View.GONE
+                experimentContentTextView.visibility = View.VISIBLE
+                
+                // Update content text based on state
+                experimentContentTextView.text = when (state) {
+                    ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
+                    ExperimentState.FIXATION_DELAY -> "+"  // Fixation cross
+                    ExperimentState.SPEECH_RECORDING -> "Please describe what you saw"
+                    ExperimentState.BLOCK_END -> "Block $currentBlock Complete"
+                    ExperimentState.EXPERIMENT_END -> "Experiment Complete"
+                    else -> "Experiment Content Area"
+                }
+            }
+        }
+        
         // Update button state
         when (state) {
             ExperimentState.IDLE -> {
@@ -181,6 +214,11 @@ class ExperimentActivity : BaseExperimentActivity() {
                 nextButton.text = "Next"
             }
         }
+    }
+    
+    override fun onVideoError(errorMessage: String) {
+        super.onVideoError(errorMessage)
+        Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
     }
     
     private fun updateTimeDisplay() {

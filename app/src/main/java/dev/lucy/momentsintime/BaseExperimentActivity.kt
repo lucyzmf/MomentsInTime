@@ -1,22 +1,29 @@
 package dev.lucy.momentsintime
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import android.content.Context
 
 /**
  * Base activity for experiment execution with state management.
  */
+@UnstableApi
 abstract class BaseExperimentActivity : AppCompatActivity() {
 
     // State management
@@ -33,6 +40,16 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     private var experimentStartTime = 0L
     private var stateStartTime = 0L
     private var wakeLock: PowerManager.WakeLock? = null
+    
+    // Video playback
+    protected var player: ExoPlayer? = null
+    private var currentVideoName: String? = null
+    private var videoStartTime = 0L
+    private var videoDuration = 0L
+    
+    companion object {
+        private const val TAG = "BaseExperimentActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +60,9 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
         // Acquire wake lock to prevent CPU from sleeping
         acquireWakeLock()
         
+        // Initialize ExoPlayer
+        initializePlayer()
+        
         // Observe state changes
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -52,10 +72,48 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             }
         }
     }
+    
+    override fun onStart() {
+        super.onStart()
+        if (player == null) {
+            initializePlayer()
+        }
+    }
+    
+    override fun onStop() {
+        releasePlayer()
+        super.onStop()
+    }
 
     override fun onDestroy() {
         releaseWakeLock()
+        releasePlayer()
         super.onDestroy()
+    }
+    
+    /**
+     * Initialize the ExoPlayer instance
+     */
+    private fun initializePlayer() {
+        player = ExoPlayer.Builder(this)
+            .build()
+            .also {
+                it.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_ENDED) {
+                            onVideoPlaybackEnded()
+                        }
+                    }
+                })
+            }
+    }
+    
+    /**
+     * Release the ExoPlayer instance
+     */
+    private fun releasePlayer() {
+        player?.release()
+        player = null
     }
 
     /**
@@ -84,7 +142,90 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
      * Called when the state changes
      */
     protected open fun onStateChanged(state: ExperimentState) {
-        // To be implemented by subclasses
+        // Handle video playback when in TRIAL_VIDEO state
+        if (state == ExperimentState.TRIAL_VIDEO) {
+            playCurrentTrialVideo()
+        } else {
+            // Stop video if playing and not in video state
+            player?.stop()
+        }
+    }
+    
+    /**
+     * Play the video for the current trial
+     */
+    protected fun playCurrentTrialVideo() {
+        val videoIndex = (currentBlock - 1) * trialsPerBlock + (currentTrial - 1)
+        val videoName = getVideoNameForTrial(videoIndex)
+        playVideo(videoName)
+    }
+    
+    /**
+     * Get the video name for a specific trial index
+     */
+    protected open fun getVideoNameForTrial(trialIndex: Int): String {
+        return "video${trialIndex + 1}"
+    }
+    
+    /**
+     * Play a video by name
+     */
+    protected fun playVideo(videoName: String) {
+        try {
+            currentVideoName = videoName
+            videoStartTime = SystemClock.elapsedRealtime()
+            
+            // Get video resource ID
+            val resourceId = resources.getIdentifier(
+                videoName, "raw", packageName
+            )
+            
+            if (resourceId == 0) {
+                Log.e(TAG, "Video resource not found: $videoName")
+                onVideoError("Video resource not found: $videoName")
+                return
+            }
+            
+            // Create media item from raw resource
+            val videoUri = Uri.parse("android.resource://$packageName/$resourceId")
+            val mediaItem = MediaItem.fromUri(videoUri)
+            
+            // Prepare and play the video
+            player?.apply {
+                setMediaItem(mediaItem)
+                prepare()
+                play()
+            }
+            
+            Log.d(TAG, "Started playing video: $videoName")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing video: ${e.message}", e)
+            onVideoError("Error playing video: ${e.message}")
+        }
+    }
+    
+    /**
+     * Called when video playback ends
+     */
+    private fun onVideoPlaybackEnded() {
+        if (experimentState.value == ExperimentState.TRIAL_VIDEO) {
+            videoDuration = SystemClock.elapsedRealtime() - videoStartTime
+            Log.d(TAG, "Video ended: $currentVideoName, duration: $videoDuration ms")
+            
+            // Transition to fixation delay
+            transitionToState(ExperimentState.FIXATION_DELAY)
+        }
+    }
+    
+    /**
+     * Called when there's an error playing the video
+     */
+    protected open fun onVideoError(errorMessage: String) {
+        Log.e(TAG, errorMessage)
+        // Default implementation: move to next state
+        if (experimentState.value == ExperimentState.TRIAL_VIDEO) {
+            transitionToState(ExperimentState.FIXATION_DELAY)
+        }
     }
 
     /**

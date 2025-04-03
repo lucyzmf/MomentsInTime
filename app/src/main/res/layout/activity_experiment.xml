@@ -82,6 +82,12 @@
             android:textSize="18sp"
             android:layout_gravity="center" />
 
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/playerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
     </FrameLayout>
 
     <Button
