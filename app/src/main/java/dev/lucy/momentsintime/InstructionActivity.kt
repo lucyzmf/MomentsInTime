@@ -8,9 +8,11 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.media3.common.util.UnstableApi
 import androidx.viewpager2.widget.ViewPager2
 import java.time.LocalDate
 
+@OptIn(UnstableApi::class)
 class InstructionActivity : AppCompatActivity() {
     
     private lateinit var viewPager: ViewPager2
