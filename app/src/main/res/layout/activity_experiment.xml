@@ -87,6 +87,13 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone" />
+            
+        <include
+            android:id="@+id/fixationCrossLayout"
+            layout="@layout/fixation_cross_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
     </FrameLayout>
 

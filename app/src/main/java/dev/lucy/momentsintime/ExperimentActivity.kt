@@ -24,6 +24,9 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var nextButton: Button
     private lateinit var playerView: PlayerView
     private lateinit var experimentContentTextView: TextView
+    private lateinit var fixationCrossLayout: View
+    private lateinit var fixationCrossTextView: TextView
+    private lateinit var countdownTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -60,6 +63,11 @@ class ExperimentActivity : BaseExperimentActivity() {
         nextButton = findViewById(R.id.nextButton)
         playerView = findViewById(R.id.playerView)
         experimentContentTextView = findViewById(R.id.experimentContentTextView)
+        
+        // Initialize fixation cross views
+        fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
+        fixationCrossTextView = fixationCrossLayout.findViewById(R.id.fixationCrossTextView)
+        countdownTextView = fixationCrossLayout.findViewById(R.id.countdownTextView)
         
         // Connect player to view
         playerView.player = player
@@ -111,10 +119,8 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.FIXATION_DELAY -> {
-                // After fixation delay, transition to speech recording
-                handler.postDelayed({
-                    transitionToState(ExperimentState.SPEECH_RECORDING)
-                }, 1000)
+                // Show fixation cross and start countdown
+                startFixationCountdown(1000) // 1000ms delay
             }
             
             ExperimentState.SPEECH_RECORDING -> {
@@ -174,15 +180,21 @@ class ExperimentActivity : BaseExperimentActivity() {
             ExperimentState.TRIAL_VIDEO -> {
                 playerView.visibility = View.VISIBLE
                 experimentContentTextView.visibility = View.GONE
+                fixationCrossLayout.visibility = View.GONE
+            }
+            ExperimentState.FIXATION_DELAY -> {
+                playerView.visibility = View.GONE
+                experimentContentTextView.visibility = View.GONE
+                fixationCrossLayout.visibility = View.VISIBLE
             }
             else -> {
                 playerView.visibility = View.GONE
                 experimentContentTextView.visibility = View.VISIBLE
+                fixationCrossLayout.visibility = View.GONE
                 
                 // Update content text based on state
                 experimentContentTextView.text = when (state) {
                     ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
-                    ExperimentState.FIXATION_DELAY -> "+"  // Fixation cross
                     ExperimentState.SPEECH_RECORDING -> "Please describe what you saw"
                     ExperimentState.BLOCK_END -> "Block $currentBlock Complete"
                     ExperimentState.EXPERIMENT_END -> "Experiment Complete"
@@ -227,5 +239,58 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         timeTextView.text = String.format("Time: %02d:%02d.%03d", 
             minutes, seconds, elapsedMs % 1000)
+    }
+    
+    /**
+     * Start the fixation cross countdown timer
+     * @param durationMs Total duration of the fixation period in milliseconds
+     */
+    private fun startFixationCountdown(durationMs: Long) {
+        val updateIntervalMs = 100L // Update every 100ms for smooth countdown
+        val totalSteps = durationMs / updateIntervalMs
+        var remainingSteps = totalSteps
+        
+        // Initial display
+        updateCountdownDisplay(durationMs, durationMs)
+        
+        // Create a repeating task to update the countdown
+        val countdownRunnable = object : Runnable {
+            override fun run() {
+                remainingSteps--
+                val remainingMs = remainingSteps * updateIntervalMs
+                
+                // Update the display
+                updateCountdownDisplay(remainingMs, durationMs)
+                
+                if (remainingSteps > 0) {
+                    // Schedule the next update
+                    handler.postDelayed(this, updateIntervalMs)
+                } else {
+                    // Countdown finished, move to next state
+                    transitionToState(ExperimentState.SPEECH_RECORDING)
+                }
+            }
+        }
+        
+        // Start the countdown
+        handler.postDelayed(countdownRunnable, updateIntervalMs)
+    }
+    
+    /**
+     * Update the countdown display
+     * @param remainingMs Remaining time in milliseconds
+     * @param totalMs Total duration in milliseconds
+     */
+    private fun updateCountdownDisplay(remainingMs: Long, totalMs: Long) {
+        // Format as seconds with one decimal place
+        val remainingSeconds = remainingMs / 1000f
+        countdownTextView.text = String.format("%.1f", remainingSeconds)
+        
+        // Optional: Animate the text size based on remaining time
+        val progress = remainingMs.toFloat() / totalMs
+        val startSize = 24f
+        val endSize = 36f
+        val currentSize = startSize + (endSize - startSize) * (1 - progress)
+        countdownTextView.textSize = currentSize
     }
 }
