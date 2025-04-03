@@ -1,4 +1,4 @@
-package dev.lucy.myapplication
+package dev.lucy.momentsintime
 
 import org.junit.Test
 

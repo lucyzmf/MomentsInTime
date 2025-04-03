@@ -1,4 +1,4 @@
-package dev.lucy.myapplication.ui.theme
+package dev.lucy.momentsintime.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

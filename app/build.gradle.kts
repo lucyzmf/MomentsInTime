@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.lucy.myapplication"
+    namespace = "dev.lucy.momentsintime"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.lucy.myapplication"
+        applicationId = "dev.lucy.momentsintime"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
