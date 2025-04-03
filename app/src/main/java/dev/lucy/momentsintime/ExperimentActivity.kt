@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-@UnstableApi
 class ExperimentActivity : BaseExperimentActivity() {
     
     private lateinit var statusTextView: TextView

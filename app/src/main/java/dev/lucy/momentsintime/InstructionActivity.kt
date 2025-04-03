@@ -12,7 +12,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.viewpager2.widget.ViewPager2
 import java.time.LocalDate
 
-@UnstableApi
 class InstructionActivity : AppCompatActivity() {
     
     private lateinit var viewPager: ViewPager2

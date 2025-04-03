@@ -23,7 +23,6 @@ import kotlinx.coroutines.launch
 /**
  * Base activity for experiment execution with state management.
  */
-@UnstableApi
 abstract class BaseExperimentActivity : AppCompatActivity() {
 
     // State management
