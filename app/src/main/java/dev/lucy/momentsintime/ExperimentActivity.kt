@@ -1,5 +1,7 @@
 package dev.lucy.momentsintime
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -7,11 +9,13 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 
 class ExperimentActivity : BaseExperimentActivity() {
@@ -40,6 +44,25 @@ class ExperimentActivity : BaseExperimentActivity() {
         }
     }
     
+    // Audio recording
+    private lateinit var audioRecorder: AudioRecorder
+    private var currentRecordingFile: File? = null
+    private var permissionsGranted = false
+    
+    // Permission request launcher
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        permissionsGranted = allGranted
+        
+        if (allGranted) {
+            Toast.makeText(this, "Audio recording permission granted", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Audio recording permission denied", Toast.LENGTH_LONG).show()
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_experiment)
@@ -53,6 +76,12 @@ class ExperimentActivity : BaseExperimentActivity() {
             participantId = participantId,
             date = LocalDate.parse(dateString)
         )
+        
+        // Initialize audio recorder
+        audioRecorder = AudioRecorder(this)
+        
+        // Check and request permissions
+        checkAndRequestPermissions()
         
         // Initialize views
         statusTextView = findViewById(R.id.statusTextView)
@@ -97,7 +126,28 @@ class ExperimentActivity : BaseExperimentActivity() {
     
     override fun onDestroy() {
         handler.removeCallbacks(updateTimeRunnable)
+        audioRecorder.stopRecording()
         super.onDestroy()
+    }
+    
+    /**
+     * Check and request necessary permissions
+     */
+    private fun checkAndRequestPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
+        
+        val permissionsToRequest = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+        
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissionsToRequest)
+        } else {
+            permissionsGranted = true
+        }
     }
     
     override fun onStateChanged(state: ExperimentState) {
@@ -124,14 +174,8 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.SPEECH_RECORDING -> {
-                // After speech recording duration, prepare for next trial
-                handler.postDelayed({
-                    if (currentTrial < trialsPerBlock) {
-                        startNextTrial()
-                    } else {
-                        transitionToState(ExperimentState.BLOCK_END)
-                    }
-                }, config?.speechDurationMs ?: 3000)
+                // Start audio recording
+                startAudioRecording()
             }
             
             ExperimentState.BLOCK_END -> {
@@ -292,5 +336,67 @@ class ExperimentActivity : BaseExperimentActivity() {
         val endSize = 36f
         val currentSize = startSize + (endSize - startSize) * (1 - progress)
         countdownTextView.textSize = currentSize
+    }
+    
+    /**
+     * Start audio recording for the current trial
+     */
+    private fun startAudioRecording() {
+        if (!permissionsGranted) {
+            Toast.makeText(
+                this,
+                "Cannot record audio: permissions not granted",
+                Toast.LENGTH_LONG
+            ).show()
+            
+            // Skip recording and move to next state after delay
+            handler.postDelayed({
+                handleRecordingComplete()
+            }, config?.speechDurationMs ?: 3000)
+            return
+        }
+        
+        // Update UI to show recording state
+        experimentContentTextView.text = "Recording... Please describe what you saw"
+        
+        // Start recording
+        audioRecorder.startRecording(
+            participantId = participantId,
+            blockNumber = currentBlock,
+            trialNumber = currentTrial,
+            durationMs = config?.speechDurationMs ?: 3000,
+            onComplete = { file ->
+                currentRecordingFile = file
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Recording saved: ${file.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    handleRecordingComplete()
+                }
+            },
+            onError = { error ->
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Recording error: $error",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    handleRecordingComplete()
+                }
+            }
+        )
+    }
+    
+    /**
+     * Handle completion of recording
+     */
+    private fun handleRecordingComplete() {
+        if (currentTrial < trialsPerBlock) {
+            startNextTrial()
+        } else {
+            transitionToState(ExperimentState.BLOCK_END)
+        }
     }
 }
