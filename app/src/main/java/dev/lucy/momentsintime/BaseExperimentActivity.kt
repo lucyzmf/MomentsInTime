@@ -170,7 +170,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     /**
      * Play a video by name
      */
-    protected fun playVideo(videoName: String) {
+    protected open fun playVideo(videoName: String) {
         try {
             currentVideoName = videoName
             videoStartTime = SystemClock.elapsedRealtime()

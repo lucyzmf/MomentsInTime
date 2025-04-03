@@ -31,6 +31,8 @@ class VideoPlaybackTest {
         var lastVideoName: String? = null
         val stateChangeLatch = CountDownLatch(1)
 
+        private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        
         override fun playVideo(videoName: String) {
             lastVideoName = videoName
             videoPlaybackStarted = true
