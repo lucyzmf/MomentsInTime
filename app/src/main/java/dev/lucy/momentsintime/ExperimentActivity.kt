@@ -156,16 +156,18 @@ class ExperimentActivity : BaseExperimentActivity() {
         when (state) {
             ExperimentState.BLOCK_START -> {
                 // Automatically transition to first trial after a delay
-                handler.postDelayed({
-                    startNextTrial()
-                }, 2000)
+//                handler.postDelayed({
+//                    startNextTrial()
+//                }, 2000)
+                startNextTrial()
             }
             
             ExperimentState.TRIAL_VIDEO -> {
                 // Simulate video playback, then transition to fixation
-                handler.postDelayed({
-                    transitionToState(ExperimentState.FIXATION_DELAY)
-                }, 3000)
+//                handler.postDelayed({
+//                    transitionToState(ExperimentState.FIXATION_DELAY)
+//                }, 3000)
+                playCurrentTrialVideo()
             }
             
             ExperimentState.FIXATION_DELAY -> {
