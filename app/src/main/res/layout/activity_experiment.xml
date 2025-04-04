@@ -61,6 +61,21 @@
         android:layout_marginEnd="16dp"
         android:background="#80000000"
         android:padding="4dp" />
+        
+    <TextView
+        android:id="@+id/batteryStatusTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Battery Warning"
+        android:textSize="14sp"
+        android:textColor="#FF0000"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/connectionStatusTextView"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:background="#80000000"
+        android:padding="4dp" />
 
     <FrameLayout
         android:id="@+id/experimentContentFrame"

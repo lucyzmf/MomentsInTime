@@ -48,7 +48,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var fixationCrossTextView: TextView
     private lateinit var countdownTextView: TextView
     private lateinit var connectionStatusTextView: TextView
-    private lateinit var batteryWarningTextView: TextView
+    private lateinit var batteryStatusTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -128,7 +128,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         batteryWarningTextView = findViewById(R.id.batteryWarningTextView)
         
         // Hide battery warning by default, only show if battery is low at start
-        batteryWarningTextView.visibility = View.GONE
+        batteryStatusTextView.visibility = View.GONE
 
         // Connect player to view
         playerView.player = player
@@ -563,13 +563,13 @@ class ExperimentActivity : BaseExperimentActivity() {
             val chargingSymbol = if (isCharging) "⚡" else ""
             
             runOnUiThread {
-                batteryWarningTextView.text = String.format("WARNING: Low Battery: %d%% %s", batteryLevel, chargingSymbol)
-                batteryWarningTextView.setTextColor(getColor(android.R.color.holo_red_light))
-                batteryWarningTextView.visibility = View.VISIBLE
+                batteryStatusTextView.text = String.format("WARNING: Low Battery: %d%% %s", batteryLevel, chargingSymbol)
+                batteryStatusTextView.setTextColor(getColor(android.R.color.holo_red_light))
+                batteryStatusTextView.visibility = View.VISIBLE
                 
                 // Auto-hide after 10 seconds
-                batteryWarningTextView.postDelayed({
-                    batteryWarningTextView.visibility = View.GONE
+                batteryStatusTextView.postDelayed({
+                    batteryStatusTextView.visibility = View.GONE
                 }, 10000)
             }
             
