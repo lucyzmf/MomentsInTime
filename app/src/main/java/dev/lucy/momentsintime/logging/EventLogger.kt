@@ -111,11 +111,10 @@ class EventLogger private constructor(
                     EventType.FIXATION_END,
                     EventType.TRIAL_END, 
                     EventType.BLOCK_END,
-                    EventType.EXPERIMENT_END,
                     EventType.ERROR
                 )
             ) {
-                saveEvents()
+                saveEvents(is_intermediate = true)
             }
         }
     }
@@ -237,14 +236,14 @@ class EventLogger private constructor(
                 )
             )
             Log.e(TAG, "Logged error: $message")
-            saveEvents() // Always save immediately on errors
+            saveEvents(is_intermediate = true) // Always save immediately on errors
         }
     }
 
     /**
      * Save events to a JSON file
      */
-    fun saveEvents() {
+    fun saveEvents(is_intermediate: Boolean = false) {
         if (events.isEmpty()) {
             Log.d(TAG, "No events to save")
             return
@@ -255,7 +254,8 @@ class EventLogger private constructor(
                 try {
                     val logsDir = ensureLogsDirectory()
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                    val fileName = "p${participantId}_${sessionDate}_${timestamp}.json"
+                    val prefix = if (is_intermediate) "intermediate_" else ""
+                    val fileName = "${prefix}p${participantId}_${sessionDate}_${timestamp}.json"
                     val logFile = File(logsDir, fileName)
 
                     // Create a copy of events to avoid concurrent modification
