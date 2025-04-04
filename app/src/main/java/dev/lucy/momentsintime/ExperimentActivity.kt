@@ -90,10 +90,6 @@ class ExperimentActivity : BaseExperimentActivity() {
             date = LocalDate.parse(dateString)
         )
         
-        // Initialize event logger
-        eventLogger = EventLogger.initialize(this)
-        eventLogger.setExperimentInfo(participantId, dateString)
-        
         // Initialize audio recorder
         audioRecorder = AudioRecorder(this)
         
@@ -121,6 +117,10 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Initialize experiment
         initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
         startButton.visibility = View.GONE
+
+        // Initialize event logger
+        eventLogger = EventLogger.initialize(this, this.experimentStartTime)
+        eventLogger.setExperimentInfo(participantId, dateString)
 
         nextButton.setOnClickListener {
             handleNextButtonClick()

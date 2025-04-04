@@ -36,7 +36,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     protected var trialsPerBlock = 0
 
     // Time tracking
-    private var experimentStartTime = 0L
+    var experimentStartTime = 0L
     private var stateStartTime = 0L
     private var wakeLock: PowerManager.WakeLock? = null
     
