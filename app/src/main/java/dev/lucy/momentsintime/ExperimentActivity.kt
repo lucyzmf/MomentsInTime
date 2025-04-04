@@ -39,6 +39,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var fixationCrossLayout: View
     private lateinit var fixationCrossTextView: TextView
     private lateinit var countdownTextView: TextView
+    private lateinit var connectionStatusTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -59,7 +60,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     
     // Event logger and serial port helper
     private lateinit var eventLogger: EventLogger
-    private lateinit var serialPortHelper: SerialPortHelper
+    lateinit var serialPortHelper: SerialPortHelper
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -112,7 +113,10 @@ class ExperimentActivity : BaseExperimentActivity() {
         fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
         fixationCrossTextView = fixationCrossLayout.findViewById(R.id.fixationCrossTextView)
         countdownTextView = fixationCrossLayout.findViewById(R.id.countdownTextView)
-        
+
+        // Connection status text view
+        connectionStatusTextView = findViewById(R.id.connectionStatusTextView)
+
         // Connect player to view
         playerView.player = player
         
