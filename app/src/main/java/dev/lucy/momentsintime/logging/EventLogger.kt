@@ -22,7 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 data class ExperimentEvent(
     val absoluteTime: Long = System.currentTimeMillis(),
-    val relativeTime: Long = SystemClock.elapsedRealtime() - EventLogger.getInstance().experimentStartTime,
+    val relativeTime: Long,
     val type: EventType,
     val blockNumber: Int? = null,
     val trialNumber: Int? = null,
@@ -55,65 +55,75 @@ enum class EventType {
 /**
  * Singleton for logging experiment events to JSON files
  */
-class EventLogger private constructor(private val context: Context) {
+class EventLogger private constructor(
+    private val context: Context,
+    private val experimentStartTime: Long
+) {
     private val events = CopyOnWriteArrayList<ExperimentEvent>()
     private val mutex = Mutex()
     private val scope = CoroutineScope(Dispatchers.IO)
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
-    
-    var experimentStartTime = SystemClock.elapsedRealtime()
+
     private var participantId: Int = -1
     private var sessionDate: String = ""
-    
+
     companion object {
         private const val TAG = "EventLogger"
         private var instance: EventLogger? = null
-        
-        fun initialize(context: Context): EventLogger {
+
+        fun initialize(context: Context, experimentStartTime: Long): EventLogger {
             return instance ?: synchronized(this) {
-                instance ?: EventLogger(context.applicationContext).also { instance = it }
+                instance ?: EventLogger(
+                    context.applicationContext,
+                    experimentStartTime
+                ).also { instance = it }
             }
         }
-        
+
         fun getInstance(): EventLogger {
             return instance ?: throw IllegalStateException("EventLogger not initialized")
         }
     }
-    
+
     /**
      * Set experiment metadata
      */
     fun setExperimentInfo(participantId: Int, date: String) {
         this.participantId = participantId
         this.sessionDate = date
-        this.experimentStartTime = SystemClock.elapsedRealtime()
         Log.d(TAG, "Experiment start time set: $experimentStartTime")
     }
-    
+
     /**
      * Log an experiment event
      */
     fun logEvent(event: ExperimentEvent) {
         events.add(event)
         Log.d(TAG, "Logged event: ${event.type}")
-        
+
         // Save after certain important events
         if (event.type in listOf(
                 EventType.BLOCK_END,
                 EventType.EXPERIMENT_END,
                 EventType.ERROR
-            )) {
+            )
+        ) {
             saveEvents()
         }
     }
-    
+
     /**
      * Log a simple event with just a type
      */
     fun logEvent(type: EventType) {
-        logEvent(ExperimentEvent(type = type))
+        logEvent(
+            ExperimentEvent(
+                type = type,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+            )
+        )
     }
-    
+
     /**
      * Log a state change event
      */
@@ -121,11 +131,12 @@ class EventLogger private constructor(private val context: Context) {
         logEvent(
             ExperimentEvent(
                 type = EventType.STATE_CHANGE,
-                state = state
+                state = state,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
             )
         )
     }
-    
+
     /**
      * Log a block event
      */
@@ -133,11 +144,12 @@ class EventLogger private constructor(private val context: Context) {
         logEvent(
             ExperimentEvent(
                 type = type,
-                blockNumber = blockNumber
+                blockNumber = blockNumber,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
             )
         )
     }
-    
+
     /**
      * Log a trial event
      */
@@ -146,11 +158,12 @@ class EventLogger private constructor(private val context: Context) {
             ExperimentEvent(
                 type = type,
                 blockNumber = blockNumber,
-                trialNumber = trialNumber
+                trialNumber = trialNumber,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
             )
         )
     }
-    
+
     /**
      * Log a video event
      */
@@ -160,25 +173,32 @@ class EventLogger private constructor(private val context: Context) {
                 type = type,
                 blockNumber = blockNumber,
                 trialNumber = trialNumber,
-                videoName = videoName
+                videoName = videoName,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
             )
         )
     }
-    
+
     /**
      * Log a recording event
      */
-    fun logRecordingEvent(type: EventType, blockNumber: Int, trialNumber: Int, audioFileName: String) {
+    fun logRecordingEvent(
+        type: EventType,
+        blockNumber: Int,
+        trialNumber: Int,
+        audioFileName: String
+    ) {
         logEvent(
             ExperimentEvent(
                 type = type,
                 blockNumber = blockNumber,
                 trialNumber = trialNumber,
-                audioFileName = audioFileName
+                audioFileName = audioFileName,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
             )
         )
     }
-    
+
     /**
      * Log an error event
      */
@@ -186,11 +206,12 @@ class EventLogger private constructor(private val context: Context) {
         logEvent(
             ExperimentEvent(
                 type = EventType.ERROR,
+                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime,
                 details = details?.plus("message" to message) ?: mapOf("message" to message)
             )
         )
     }
-    
+
     /**
      * Save events to a JSON file
      */
@@ -199,7 +220,7 @@ class EventLogger private constructor(private val context: Context) {
             Log.d(TAG, "No events to save")
             return
         }
-        
+
         scope.launch {
             mutex.withLock {
                 try {
@@ -207,13 +228,13 @@ class EventLogger private constructor(private val context: Context) {
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
                     val fileName = "p${participantId}_${sessionDate}_${timestamp}.json"
                     val logFile = File(logsDir, fileName)
-                    
+
                     FileWriter(logFile).use { writer ->
                         val json = gson.toJson(events)
                         writer.write(json)
                         writer.flush()
                     }
-                    
+
                     Log.d(TAG, "Saved ${events.size} events to ${logFile.absolutePath}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error saving events: ${e.message}", e)
@@ -221,14 +242,14 @@ class EventLogger private constructor(private val context: Context) {
             }
         }
     }
-    
+
     /**
      * Ensure the logs directory exists
      */
     private fun ensureLogsDirectory(): File {
         val baseDir = File(context.getExternalFilesDir(null), "moments_in_time")
         val logsDir = File(baseDir, "logs")
-        
+
         if (!logsDir.exists()) {
             if (logsDir.mkdirs()) {
                 Log.d(TAG, "Created logs directory: ${logsDir.absolutePath}")
@@ -236,17 +257,17 @@ class EventLogger private constructor(private val context: Context) {
                 Log.e(TAG, "Failed to create logs directory: ${logsDir.absolutePath}")
             }
         }
-        
+
         return logsDir
     }
-    
+
     /**
      * Get the audio directory
      */
     fun getAudioDirectory(): File {
         val baseDir = File(context.getExternalFilesDir(null), "moments_in_time")
         val audioDir = File(baseDir, "audio")
-        
+
         if (!audioDir.exists()) {
             if (audioDir.mkdirs()) {
                 Log.d(TAG, "Created audio directory: ${audioDir.absolutePath}")
@@ -254,10 +275,10 @@ class EventLogger private constructor(private val context: Context) {
                 Log.e(TAG, "Failed to create audio directory: ${audioDir.absolutePath}")
             }
         }
-        
+
         return audioDir
     }
-    
+
     /**
      * Clear all events (typically after saving)
      */
