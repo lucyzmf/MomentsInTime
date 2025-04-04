@@ -253,7 +253,7 @@ class EventLogger private constructor(
             mutex.withLock {
                 try {
                     val logsDir = ensureLogsDirectory()
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                    val timestamp = SimpleDateFormat("HHmmss", Locale.US).format(Date())
                     val prefix = if (is_intermediate) "intermediate_" else ""
                     val fileName = "${prefix}p${participantId}_${sessionDate}_${timestamp}.json"
                     val logFile = File(logsDir, fileName)
