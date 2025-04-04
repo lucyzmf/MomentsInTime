@@ -261,7 +261,8 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.EXPERIMENT_END -> {
-                finish()
+                // Close the app completely when experiment is done
+                finishAffinity()
             }
             
             else -> { /* No action needed */ }
