@@ -14,10 +14,11 @@ sealed class ExperimentConfig {
     data class Standard(
         val participantId: Int,
         val date: LocalDate,
-        val blocks: Int = 3,
-        val trialsPerBlock: Int = 5,
+        val blocks: Int = 2,
+        val trialsPerBlock: Int = 1,
         val speechDurationMs: Long = 3000,
-        val videoNames: List<String> = List(15) { "video${it + 1}" }
+        val videoNames: List<String> = List(15) { "video${it + 1}" },
+        val fixationDurationMs: Long = 1000,
     ) : ExperimentConfig()
     
     companion object {

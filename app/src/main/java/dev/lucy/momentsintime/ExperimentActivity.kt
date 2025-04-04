@@ -225,7 +225,7 @@ class ExperimentActivity : BaseExperimentActivity() {
             
             ExperimentState.FIXATION_DELAY -> {
                 // Show fixation cross and start countdown
-                startFixationCountdown(1000) // 1000ms delay
+                startFixationCountdown(config?.fixationDurationMs ?: 1000) // 1000ms delay
             }
             
             ExperimentState.SPEECH_RECORDING -> {
