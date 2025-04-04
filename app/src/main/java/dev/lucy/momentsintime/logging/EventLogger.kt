@@ -98,23 +98,25 @@ class EventLogger private constructor(
      * Log an experiment event
      */
     fun logEvent(event: ExperimentEvent) {
-        events.add(event)
-        Log.d(TAG, "Logged event: ${event.type}")
+        scope.launch {
+            events.add(event)
+            Log.d(TAG, "Logged event: ${event.type}")
 
-        // Save after certain important events
-        if (event.type in listOf(
-                EventType.EXPERIMENT_START,
-                EventType.BLOCK_START,
-                EventType.FIXATION_START,
-                EventType.TRIAL_START,
-                EventType.FIXATION_END,
-                EventType.TRIAL_END, 
-                EventType.BLOCK_END,
-                EventType.EXPERIMENT_END,
-                EventType.ERROR
-            )
-        ) {
-            saveEvents()
+            // Save after certain important events
+            if (event.type in listOf(
+                    EventType.EXPERIMENT_START,
+                    EventType.BLOCK_START,
+                    EventType.FIXATION_START,
+                    EventType.TRIAL_START,
+                    EventType.FIXATION_END,
+                    EventType.TRIAL_END, 
+                    EventType.BLOCK_END,
+                    EventType.EXPERIMENT_END,
+                    EventType.ERROR
+                )
+            ) {
+                saveEvents()
+            }
         }
     }
 
@@ -122,67 +124,81 @@ class EventLogger private constructor(
      * Log a simple event with just a type
      */
     fun logEvent(type: EventType) {
-        logEvent(
-            ExperimentEvent(
-                type = type,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            logEvent(
+                ExperimentEvent(
+                    type = type,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+        }
     }
 
     /**
      * Log a state change event
      */
     fun logStateChange(state: String) {
-        logEvent(
-            ExperimentEvent(
-                type = EventType.STATE_CHANGE,
-                state = state,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = EventType.STATE_CHANGE,
+                    state = state,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+            Log.d(TAG, "Logged state change: $state")
+        }
     }
 
     /**
      * Log a block event
      */
     fun logBlockEvent(type: EventType, blockNumber: Int) {
-        logEvent(
-            ExperimentEvent(
-                type = type,
-                blockNumber = blockNumber,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = type,
+                    blockNumber = blockNumber,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+            Log.d(TAG, "Logged block event: $type, block: $blockNumber")
+        }
     }
 
     /**
      * Log a trial event
      */
     fun logTrialEvent(type: EventType, blockNumber: Int, trialNumber: Int) {
-        logEvent(
-            ExperimentEvent(
-                type = type,
-                blockNumber = blockNumber,
-                trialNumber = trialNumber,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = type,
+                    blockNumber = blockNumber,
+                    trialNumber = trialNumber,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+            Log.d(TAG, "Logged trial event: $type, block: $blockNumber, trial: $trialNumber")
+        }
     }
 
     /**
      * Log a video event
      */
     fun logVideoEvent(type: EventType, blockNumber: Int, trialNumber: Int, videoName: String) {
-        logEvent(
-            ExperimentEvent(
-                type = type,
-                blockNumber = blockNumber,
-                trialNumber = trialNumber,
-                videoName = videoName,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = type,
+                    blockNumber = blockNumber,
+                    trialNumber = trialNumber,
+                    videoName = videoName,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+            Log.d(TAG, "Logged video event: $type, block: $blockNumber, trial: $trialNumber, video: $videoName")
+        }
     }
 
     /**
@@ -194,28 +210,35 @@ class EventLogger private constructor(
         trialNumber: Int,
         audioFileName: String
     ) {
-        logEvent(
-            ExperimentEvent(
-                type = type,
-                blockNumber = blockNumber,
-                trialNumber = trialNumber,
-                audioFileName = audioFileName,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = type,
+                    blockNumber = blockNumber,
+                    trialNumber = trialNumber,
+                    audioFileName = audioFileName,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                )
             )
-        )
+            Log.d(TAG, "Logged recording event: $type, block: $blockNumber, trial: $trialNumber, file: $audioFileName")
+        }
     }
 
     /**
      * Log an error event
      */
     fun logError(message: String, details: Map<String, Any>? = null) {
-        logEvent(
-            ExperimentEvent(
-                type = EventType.ERROR,
-                relativeTime = SystemClock.elapsedRealtime() - experimentStartTime,
-                details = details?.plus("message" to message) ?: mapOf("message" to message)
+        scope.launch {
+            events.add(
+                ExperimentEvent(
+                    type = EventType.ERROR,
+                    relativeTime = SystemClock.elapsedRealtime() - experimentStartTime,
+                    details = details?.plus("message" to message) ?: mapOf("message" to message)
+                )
             )
-        )
+            Log.e(TAG, "Logged error: $message")
+            saveEvents() // Always save immediately on errors
+        }
     }
 
     /**
@@ -235,13 +258,16 @@ class EventLogger private constructor(
                     val fileName = "p${participantId}_${sessionDate}_${timestamp}.json"
                     val logFile = File(logsDir, fileName)
 
+                    // Create a copy of events to avoid concurrent modification
+                    val eventsCopy = ArrayList(events)
+
                     FileWriter(logFile).use { writer ->
-                        val json = gson.toJson(events)
+                        val json = gson.toJson(eventsCopy)
                         writer.write(json)
                         writer.flush()
                     }
 
-                    Log.d(TAG, "Saved ${events.size} events to ${logFile.absolutePath}")
+                    Log.d(TAG, "Saved ${eventsCopy.size} events to ${logFile.absolutePath}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error saving events: ${e.message}", e)
                 }

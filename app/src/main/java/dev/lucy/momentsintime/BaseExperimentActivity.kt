@@ -15,6 +15,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -174,17 +175,19 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             currentVideoName = videoName
             videoStartTime = SystemClock.elapsedRealtime()
             
-            // Log video start
-            try {
-                val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
-                logger.logVideoEvent(
-                    dev.lucy.momentsintime.logging.EventType.VIDEO_START,
-                    currentBlock,
-                    currentTrial,
-                    videoName
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Error logging video start: ${e.message}")
+            // Log video start (non-blocking)
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                    logger.logVideoEvent(
+                        dev.lucy.momentsintime.logging.EventType.VIDEO_START,
+                        currentBlock,
+                        currentTrial,
+                        videoName
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error logging video start: ${e.message}")
+                }
             }
             
             // Get video resource ID
@@ -224,17 +227,19 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             videoDuration = SystemClock.elapsedRealtime() - videoStartTime
             Log.d(TAG, "Video ended: $currentVideoName, duration: $videoDuration ms")
             
-            // Log video end
-            try {
-                val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
-                logger.logVideoEvent(
-                    dev.lucy.momentsintime.logging.EventType.VIDEO_END,
-                    currentBlock,
-                    currentTrial,
-                    currentVideoName ?: "unknown"
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Error logging video end: ${e.message}")
+            // Log video end (non-blocking)
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                    logger.logVideoEvent(
+                        dev.lucy.momentsintime.logging.EventType.VIDEO_END,
+                        currentBlock,
+                        currentTrial,
+                        currentVideoName ?: "unknown"
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error logging video end: ${e.message}")
+                }
             }
             
             // Transition to fixation delay
