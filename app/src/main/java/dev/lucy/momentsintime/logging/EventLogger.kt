@@ -279,8 +279,7 @@ class EventLogger private constructor(
      * Ensure the logs directory exists
      */
     private fun ensureLogsDirectory(): File {
-        val baseDir = File(context.getExternalFilesDir(null), "moments_in_time")
-        val logsDir = File(baseDir, "logs")
+        val logsDir = File(context.getExternalFilesDir(null), "logs")
 
         if (!logsDir.exists()) {
             if (logsDir.mkdirs()) {
@@ -297,8 +296,7 @@ class EventLogger private constructor(
      * Get the audio directory
      */
     fun getAudioDirectory(): File {
-        val baseDir = File(context.getExternalFilesDir(null), "moments_in_time")
-        val audioDir = File(baseDir, "audio")
+        val audioDir = File(context.getExternalFilesDir(null), "audio")
 
         if (!audioDir.exists()) {
             if (audioDir.mkdirs()) {
