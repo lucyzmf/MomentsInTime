@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
                      android:maxSdkVersion="32" />
+    <uses-feature android:name="android.hardware.usb.host" />
     
 
     <application
@@ -48,6 +49,14 @@
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize"
             android:theme="@style/Theme.MyApplication">
+            
+            <!-- USB device filter for serial adapters -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
     </application>
 

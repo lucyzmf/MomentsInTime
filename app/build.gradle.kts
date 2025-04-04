@@ -49,7 +49,7 @@ dependencies {
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
     
-//    serial dependency
+    // USB Serial for Android - for serial port communication
     implementation("com.github.mik3y:usb-serial-for-android:3.9.0")
     
     // ViewPager2 for swipeable instruction pages

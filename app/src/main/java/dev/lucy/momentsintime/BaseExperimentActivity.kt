@@ -175,16 +175,27 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             currentVideoName = videoName
             videoStartTime = SystemClock.elapsedRealtime()
             
-            // Log video start (non-blocking)
+            // Log video start and send trigger (non-blocking)
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                    val eventType = dev.lucy.momentsintime.logging.EventType.VIDEO_START
+                    
+                    // Log the event
                     logger.logVideoEvent(
-                        dev.lucy.momentsintime.logging.EventType.VIDEO_START,
+                        eventType,
                         currentBlock,
                         currentTrial,
                         videoName
                     )
+                    
+                    // Send trigger if helper is available
+                    try {
+                        val activity = this@BaseExperimentActivity as? ExperimentActivity
+                        activity?.serialPortHelper?.sendEventTrigger(eventType)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending video start trigger: ${e.message}")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error logging video start: ${e.message}")
                 }
@@ -227,16 +238,27 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             videoDuration = SystemClock.elapsedRealtime() - videoStartTime
             Log.d(TAG, "Video ended: $currentVideoName, duration: $videoDuration ms")
             
-            // Log video end (non-blocking)
+            // Log video end and send trigger (non-blocking)
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                    val eventType = dev.lucy.momentsintime.logging.EventType.VIDEO_END
+                    
+                    // Log the event
                     logger.logVideoEvent(
-                        dev.lucy.momentsintime.logging.EventType.VIDEO_END,
+                        eventType,
                         currentBlock,
                         currentTrial,
                         currentVideoName ?: "unknown"
                     )
+                    
+                    // Send trigger if helper is available
+                    try {
+                        val activity = this@BaseExperimentActivity as? ExperimentActivity
+                        activity?.serialPortHelper?.sendEventTrigger(eventType)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending video end trigger: ${e.message}")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error logging video end: ${e.message}")
                 }

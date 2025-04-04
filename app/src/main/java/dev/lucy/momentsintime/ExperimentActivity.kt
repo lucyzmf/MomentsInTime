@@ -24,6 +24,7 @@ import java.io.File
 import java.time.LocalDate
 import dev.lucy.momentsintime.logging.EventLogger
 import dev.lucy.momentsintime.logging.EventType
+import dev.lucy.momentsintime.serial.SerialPortHelper
 
 class ExperimentActivity : BaseExperimentActivity() {
     
@@ -56,8 +57,9 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var currentRecordingFile: File? = null
     private var permissionsGranted = false
     
-    // Event logger
+    // Event logger and serial port helper
     private lateinit var eventLogger: EventLogger
+    private lateinit var serialPortHelper: SerialPortHelper
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -121,6 +123,19 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Initialize event logger
         eventLogger = EventLogger.initialize(this, this.experimentStartTime)
         eventLogger.setExperimentInfo(participantId, dateString)
+        
+        // Initialize serial port helper
+        serialPortHelper = SerialPortHelper(this)
+        
+        // Observe connection state
+        lifecycleScope.launch {
+            serialPortHelper.connectionState.collect { state ->
+                updateConnectionStatus(state)
+            }
+        }
+        
+        // Try to connect to a USB device
+        serialPortHelper.connectToFirstAvailable()
 
         nextButton.setOnClickListener {
             handleNextButtonClick()
@@ -140,6 +155,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     override fun onDestroy() {
         handler.removeCallbacks(updateTimeRunnable)
         audioRecorder.stopRecording()
+        serialPortHelper.cleanup()
         super.onDestroy()
     }
     
@@ -214,6 +230,19 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Log state change
         eventLogger.logStateChange(state.name)
         
+        // Send trigger for state change if connected
+        if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
+            when (state) {
+                ExperimentState.BLOCK_START -> serialPortHelper.sendEventTrigger(EventType.BLOCK_START)
+                ExperimentState.TRIAL_VIDEO -> serialPortHelper.sendEventTrigger(EventType.TRIAL_START)
+                ExperimentState.FIXATION_DELAY -> serialPortHelper.sendEventTrigger(EventType.FIXATION_START)
+                ExperimentState.SPEECH_RECORDING -> serialPortHelper.sendEventTrigger(EventType.RECORDING_START)
+                ExperimentState.BLOCK_END -> serialPortHelper.sendEventTrigger(EventType.BLOCK_END)
+                ExperimentState.EXPERIMENT_END -> serialPortHelper.sendEventTrigger(EventType.EXPERIMENT_END)
+                else -> { /* No trigger for other states */ }
+            }
+        }
+        
         when (state) {
             ExperimentState.BLOCK_START -> {
                 // Log block start
@@ -276,6 +305,9 @@ class ExperimentActivity : BaseExperimentActivity() {
                 // Log experiment start
                 eventLogger.logEvent(EventType.EXPERIMENT_START)
                 
+                // Send experiment start trigger
+                serialPortHelper.sendEventTrigger(EventType.EXPERIMENT_START)
+                
                 // Ensure system UI is hidden when experiment starts
                 hideSystemUI()
                 startNextBlock()
@@ -294,6 +326,35 @@ class ExperimentActivity : BaseExperimentActivity() {
         }
     }
     
+    /**
+     * Update the connection status display
+     */
+    private fun updateConnectionStatus(state: SerialPortHelper.ConnectionState) {
+        runOnUiThread {
+            val statusText = when (state) {
+                SerialPortHelper.ConnectionState.CONNECTED -> "USB: Connected ✓"
+                SerialPortHelper.ConnectionState.CONNECTING -> "USB: Connecting..."
+                SerialPortHelper.ConnectionState.DISCONNECTED -> "USB: Disconnected"
+                SerialPortHelper.ConnectionState.NO_DEVICES -> "USB: No devices found"
+                SerialPortHelper.ConnectionState.PERMISSION_PENDING -> "USB: Permission requested"
+                SerialPortHelper.ConnectionState.PERMISSION_DENIED -> "USB: Permission denied"
+                SerialPortHelper.ConnectionState.DRIVER_NOT_FOUND -> "USB: No driver found"
+                SerialPortHelper.ConnectionState.CONNECTION_FAILED -> "USB: Connection failed"
+                SerialPortHelper.ConnectionState.ERROR -> "USB: Error"
+            }
+            
+            val textColor = when (state) {
+                SerialPortHelper.ConnectionState.CONNECTED -> getColor(android.R.color.holo_green_dark)
+                SerialPortHelper.ConnectionState.CONNECTING, 
+                SerialPortHelper.ConnectionState.PERMISSION_PENDING -> getColor(android.R.color.holo_blue_dark)
+                else -> getColor(android.R.color.holo_red_dark)
+            }
+            
+            connectionStatusTextView.text = statusText
+            connectionStatusTextView.setTextColor(textColor)
+        }
+    }
+
     private fun updateUI(state: ExperimentState) {
         // Update status text
         statusTextView.text = "Status: ${state.name}"
