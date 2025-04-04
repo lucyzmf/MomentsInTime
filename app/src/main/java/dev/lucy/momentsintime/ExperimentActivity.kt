@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.flow.collect
+import android.util.Log
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
