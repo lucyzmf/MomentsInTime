@@ -304,8 +304,8 @@ class ExperimentActivity : BaseExperimentActivity() {
                 experimentContentTextView.text = when (state) {
                     ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
                     ExperimentState.SPEECH_RECORDING -> "Please describe what you saw"
-                    ExperimentState.BLOCK_END -> "Block $currentBlock Complete"
-                    ExperimentState.EXPERIMENT_END -> "Experiment Complete"
+                    ExperimentState.BLOCK_END -> "Block $currentBlock Complete\n\nPress Next to continue"
+                    ExperimentState.EXPERIMENT_END -> "Experiment Complete\n\nThank you for participating"
                     else -> "Experiment Content Area"
                 }
             }
