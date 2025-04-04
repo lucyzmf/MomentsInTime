@@ -6,11 +6,15 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.flow.collect
@@ -66,6 +70,10 @@ class ExperimentActivity : BaseExperimentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Hide the status bar and make the app full screen
+        hideSystemUI()
+        
         setContentView(R.layout.activity_experiment)
         
         // Get intent data
@@ -129,6 +137,34 @@ class ExperimentActivity : BaseExperimentActivity() {
         handler.removeCallbacks(updateTimeRunnable)
         audioRecorder.stopRecording()
         super.onDestroy()
+    }
+    
+    /**
+     * Hides the system UI (status bar and navigation bar)
+     */
+    private fun hideSystemUI() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // For API 30 and above
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            // For API 29 and below
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+            )
+        }
+        
+        // Keep screen on during experiment
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
     
     /**
@@ -208,6 +244,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     private fun handleNextButtonClick() {
         when (experimentState.value) {
             ExperimentState.IDLE -> {
+                // Ensure system UI is hidden when experiment starts
+                hideSystemUI()
                 startNextBlock()
             }
             
