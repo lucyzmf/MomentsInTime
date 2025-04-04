@@ -113,9 +113,9 @@ class ExperimentActivity : BaseExperimentActivity() {
         startButton.setOnClickListener {
             initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
             startButton.visibility = View.GONE
-            nextButton.visibility = View.VISIBLE
-            // Don't start the block immediately, let the user press Next
-            transitionToState(ExperimentState.IDLE)
+            
+            // Start the first block immediately
+            startNextBlock()
         }
         
         nextButton.setOnClickListener {
