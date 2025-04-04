@@ -103,12 +103,22 @@ class SerialPortHelper(private val context: Context) {
     }
     
     init {
-        // Register receivers
+        // Register receivers with RECEIVER_NOT_EXPORTED flag for Android U compatibility
         val permissionFilter = IntentFilter(ACTION_USB_PERMISSION)
-        context.registerReceiver(usbPermissionReceiver, permissionFilter)
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            usbPermissionReceiver,
+            permissionFilter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         
         val detachFilter = IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        context.registerReceiver(usbDetachReceiver, detachFilter)
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            usbDetachReceiver,
+            detachFilter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         
         // Initial device scan
         scanForDevices()
@@ -316,8 +326,8 @@ class SerialPortHelper(private val context: Context) {
      */
     fun cleanup() {
         try {
-            context.unregisterReceiver(usbPermissionReceiver)
-            context.unregisterReceiver(usbDetachReceiver)
+            androidx.core.content.ContextCompat.unregisterReceiver(context, usbPermissionReceiver)
+            androidx.core.content.ContextCompat.unregisterReceiver(context, usbDetachReceiver)
         } catch (e: Exception) {
             Log.e(TAG, "Error unregistering receivers: ${e.message}")
         }
