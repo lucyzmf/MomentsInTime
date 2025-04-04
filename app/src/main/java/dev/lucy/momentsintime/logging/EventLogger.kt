@@ -22,7 +22,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 data class ExperimentEvent(
     val absoluteTime: Long = System.currentTimeMillis(),
-    val relativeTime: Long = SystemClock.elapsedRealtime(),
+    val relativeTime: Long = SystemClock.elapsedRealtime() - EventLogger.getInstance().experimentStartTime,
     val type: EventType,
     val blockNumber: Int? = null,
     val trialNumber: Int? = null,
@@ -61,7 +61,7 @@ class EventLogger private constructor(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO)
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
     
-    private var experimentStartTime = 0L
+    var experimentStartTime = SystemClock.elapsedRealtime()
     private var participantId: Int = -1
     private var sessionDate: String = ""
     
@@ -87,6 +87,7 @@ class EventLogger private constructor(private val context: Context) {
         this.participantId = participantId
         this.sessionDate = date
         this.experimentStartTime = SystemClock.elapsedRealtime()
+        Log.d(TAG, "Experiment start time set: $experimentStartTime")
     }
     
     /**
