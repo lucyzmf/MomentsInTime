@@ -67,11 +67,16 @@ class AudioRecorder(private val context: Context) {
         try {
             Log.d(TAG, "Starting audio recording for participant $participantId, block $blockNumber, trial $trialNumber")
             
-            // Create output directory if it doesn't exist
-            val outputDir = File(context.getExternalFilesDir(null), "audio")
-            if (!outputDir.exists()) {
-                val created = outputDir.mkdirs()
-                Log.d(TAG, "Created output directory: $created")
+            // Try to get audio directory from EventLogger, fall back to default if not available
+            val outputDir = try {
+                dev.lucy.momentsintime.logging.EventLogger.getInstance().getAudioDirectory()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting audio directory from EventLogger, using default", e)
+                val dir = File(context.getExternalFilesDir(null), "audio")
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+                dir
             }
             
             // Create output file with naming convention
@@ -156,6 +161,19 @@ class AudioRecorder(private val context: Context) {
             // Start the actual recording
             audioRecord?.startRecording()
             
+            // Log recording start event
+            try {
+                val fileName = outputFile?.name ?: "unknown_file.wav"
+                dev.lucy.momentsintime.logging.EventLogger.getInstance().logRecordingEvent(
+                    dev.lucy.momentsintime.logging.EventType.RECORDING_START,
+                    blockNumber,
+                    trialNumber,
+                    fileName
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error logging recording start: ${e.message}", e)
+            }
+            
             // Schedule recording stop after the specified duration
             handler.postDelayed({
                 stopRecording()
@@ -190,6 +208,20 @@ class AudioRecorder(private val context: Context) {
             audioRecord?.stop()
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping AudioRecord: ${e.message}", e)
+        }
+        
+        // Log recording end event
+        try {
+            outputFile?.let { file ->
+                dev.lucy.momentsintime.logging.EventLogger.getInstance().logRecordingEvent(
+                    dev.lucy.momentsintime.logging.EventType.RECORDING_END,
+                    -1, // We don't have block/trial info here
+                    -1,
+                    file.name
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging recording end: ${e.message}", e)
         }
         
         releaseResources()

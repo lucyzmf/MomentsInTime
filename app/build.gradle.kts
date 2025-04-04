@@ -46,6 +46,9 @@ android {
 }
 
 dependencies {
+    // Gson for JSON serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+    
 //    serial dependency
     implementation("com.github.mik3y:usb-serial-for-android:3.9.0")
     
@@ -65,6 +68,10 @@ dependencies {
 
     // For java.time support on older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // Coroutines for background processing
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
