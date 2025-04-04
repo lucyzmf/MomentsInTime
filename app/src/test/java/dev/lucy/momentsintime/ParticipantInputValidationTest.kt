@@ -31,8 +31,8 @@ class ParticipantInputValidationTest {
         )
         
         // Verify default parameters
-        assert(config.blocks == 3)
-        assert(config.trialsPerBlock == 5)
+        assert(config.blocks == 2)
+        assert(config.trialsPerBlock == 1)
         assert(config.speechDurationMs == 3000L)
         assert(config.videoNames.size == 15)
         assert(config.videoNames.first() == "video1")
