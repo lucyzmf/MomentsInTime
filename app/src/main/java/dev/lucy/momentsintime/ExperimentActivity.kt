@@ -120,7 +120,8 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         // Initialize experiment
         initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
-        
+        startButton.visibility = View.GONE
+
         nextButton.setOnClickListener {
             handleNextButtonClick()
         }
