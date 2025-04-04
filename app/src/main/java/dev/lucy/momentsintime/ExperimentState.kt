@@ -10,5 +10,6 @@ enum class ExperimentState {
     FIXATION_DELAY,   // Delay between video and speech recording
     SPEECH_RECORDING, // Recording participant's speech
     BLOCK_END,        // End of a block
-    EXPERIMENT_END    // Experiment completed
+    EXPERIMENT_END,   // Experiment completed
+    ERROR_RECOVERY    // Error recovery state
 }

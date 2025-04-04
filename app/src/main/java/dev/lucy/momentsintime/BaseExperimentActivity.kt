@@ -47,6 +47,46 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     private var videoStartTime = 0L
     private var videoDuration = 0L
     
+    // Error handling
+    protected var errorCount = 0
+    protected val maxErrorsBeforeRecovery = 3
+    protected var lastError: String? = null
+    protected var recoveryAttempted = false
+    
+    // Battery monitoring
+    private var batteryLevel = 100
+    private var isBatteryLow = false
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            batteryLevel = (level * 100 / scale.toFloat()).toInt()
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
+                             status == BatteryManager.BATTERY_STATUS_FULL
+            
+            // Consider battery low if below 15% and not charging
+            val newLowBatteryState = batteryLevel < 15 && !isCharging
+            
+            // Only log if state changed
+            if (newLowBatteryState != isBatteryLow) {
+                isBatteryLow = newLowBatteryState
+                if (isBatteryLow) {
+                    Log.w(TAG, "Battery level low: $batteryLevel%")
+                    try {
+                        val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                        logger.logEvent(
+                            dev.lucy.momentsintime.logging.EventType.SYSTEM_WARNING,
+                            details = mapOf("type" to "low_battery", "level" to batteryLevel)
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to log battery warning: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+    
     companion object {
         private const val TAG = "BaseExperimentActivity"
     }
@@ -63,13 +103,45 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
         // Initialize ExoPlayer
         initializePlayer()
         
+        // Register battery receiver
+        registerBatteryReceiver()
+        
         // Observe state changes
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 experimentState.collect { state ->
                     onStateChanged(state)
+                    logStateTransition(state)
                 }
             }
+        }
+    }
+    
+    /**
+     * Log state transition to EventLogger
+     */
+    private fun logStateTransition(state: ExperimentState) {
+        try {
+            val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+            logger.logStateChange(state.name, details = mapOf(
+                "block" to currentBlock,
+                "trial" to currentTrial,
+                "elapsedTime" to getElapsedExperimentTime()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to log state transition: ${e.message}")
+        }
+    }
+    
+    /**
+     * Register battery receiver to monitor battery level
+     */
+    private fun registerBatteryReceiver() {
+        try {
+            val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            registerReceiver(batteryReceiver, filter)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register battery receiver: ${e.message}")
         }
     }
     
@@ -86,6 +158,12 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(batteryReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering battery receiver: ${e.message}")
+        }
+        
         releaseWakeLock()
         releasePlayer()
         super.onDestroy()
@@ -134,8 +212,50 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
      * Transition to a new state
      */
     protected fun transitionToState(newState: ExperimentState) {
+        val oldState = _experimentState.value
         stateStartTime = SystemClock.elapsedRealtime()
+        
+        // Reset error recovery flag when transitioning to a new state
+        if (oldState != newState) {
+            recoveryAttempted = false
+        }
+        
+        // Check for battery level before critical states
+        if (isBatteryLow && (newState == ExperimentState.SPEECH_RECORDING || 
+                            newState == ExperimentState.TRIAL_VIDEO)) {
+            // Log warning but continue
+            Log.w(TAG, "Transitioning to $newState with low battery ($batteryLevel%)")
+        }
+        
         _experimentState.value = newState
+    }
+    
+    /**
+     * Handle error during experiment
+     * @return true if error was handled, false if experiment should abort
+     */
+    protected fun handleError(errorMessage: String, errorSource: String): Boolean {
+        lastError = errorMessage
+        errorCount++
+        
+        try {
+            // Log the error
+            val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+            logger.logError("$errorSource error: $errorMessage")
+            
+            // Save logs immediately in case of crash
+            logger.saveEvents(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to log error: ${e.message}")
+        }
+        
+        // If too many errors, suggest recovery
+        if (errorCount >= maxErrorsBeforeRecovery && !recoveryAttempted) {
+            recoveryAttempted = true
+            return false // Suggest stopping experiment
+        }
+        
+        return true // Continue experiment
     }
 
     /**
@@ -274,10 +394,29 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
      */
     protected open fun onVideoError(errorMessage: String) {
         Log.e(TAG, errorMessage)
-        // Default implementation: move to next state
-        if (experimentState.value == ExperimentState.TRIAL_VIDEO) {
-            transitionToState(ExperimentState.FIXATION_DELAY)
+        
+        if (handleError(errorMessage, "Video playback")) {
+            // Default implementation: move to next state
+            if (experimentState.value == ExperimentState.TRIAL_VIDEO) {
+                transitionToState(ExperimentState.FIXATION_DELAY)
+            }
+        } else {
+            // Critical error - show dialog in UI thread
+            lifecycleScope.launch(Dispatchers.Main) {
+                showErrorDialog(
+                    "Critical Video Error",
+                    "Multiple video errors occurred. Last error: $errorMessage\n\nDo you want to continue the experiment?"
+                )
+            }
         }
+    }
+    
+    /**
+     * Show error dialog with recovery options
+     */
+    protected open fun showErrorDialog(title: String, message: String) {
+        // To be implemented by subclasses
+        Log.e(TAG, "Error dialog: $title - $message")
     }
 
     /**

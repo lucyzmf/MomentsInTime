@@ -1,7 +1,13 @@
 package dev.lucy.momentsintime
 
 import android.Manifest
+import android.app.AlertDialog
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,9 +23,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import android.util.Log
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 import dev.lucy.momentsintime.logging.EventLogger
@@ -40,6 +48,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var fixationCrossTextView: TextView
     private lateinit var countdownTextView: TextView
     private lateinit var connectionStatusTextView: TextView
+    private lateinit var batteryStatusTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -114,8 +123,9 @@ class ExperimentActivity : BaseExperimentActivity() {
         fixationCrossTextView = fixationCrossLayout.findViewById(R.id.fixationCrossTextView)
         countdownTextView = fixationCrossLayout.findViewById(R.id.countdownTextView)
 
-        // Connection status text view
+        // Status text views
         connectionStatusTextView = findViewById(R.id.connectionStatusTextView)
+        batteryStatusTextView = findViewById(R.id.batteryStatusTextView)
 
         // Connect player to view
         playerView.player = player
@@ -240,21 +250,43 @@ class ExperimentActivity : BaseExperimentActivity() {
     override fun onStateChanged(state: ExperimentState) {
         super.onStateChanged(state)
         
-        // Log state change
-        eventLogger.logStateChange(state.name)
+        // Log state change with additional details
+        eventLogger.logStateChange(state.name, details = mapOf(
+            "block" to currentBlock,
+            "trial" to currentTrial,
+            "batteryLevel" to batteryLevel
+        ))
         
         // Send trigger for state change if connected
         if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
-            when (state) {
-                ExperimentState.BLOCK_START -> serialPortHelper.sendEventTrigger(EventType.BLOCK_START)
-                ExperimentState.TRIAL_VIDEO -> serialPortHelper.sendEventTrigger(EventType.TRIAL_START)
-                ExperimentState.FIXATION_DELAY -> serialPortHelper.sendEventTrigger(EventType.FIXATION_START)
-                ExperimentState.SPEECH_RECORDING -> serialPortHelper.sendEventTrigger(EventType.RECORDING_START)
-                ExperimentState.BLOCK_END -> serialPortHelper.sendEventTrigger(EventType.BLOCK_END)
-                ExperimentState.EXPERIMENT_END -> serialPortHelper.sendEventTrigger(EventType.EXPERIMENT_END)
-                else -> { /* No trigger for other states */ }
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val eventType = when (state) {
+                        ExperimentState.BLOCK_START -> EventType.BLOCK_START
+                        ExperimentState.TRIAL_VIDEO -> EventType.TRIAL_START
+                        ExperimentState.FIXATION_DELAY -> EventType.FIXATION_START
+                        ExperimentState.SPEECH_RECORDING -> EventType.RECORDING_START
+                        ExperimentState.BLOCK_END -> EventType.BLOCK_END
+                        ExperimentState.EXPERIMENT_END -> EventType.EXPERIMENT_END
+                        else -> null
+                    }
+                    
+                    eventType?.let {
+                        val success = serialPortHelper.sendEventTrigger(it)
+                        if (!success) {
+                            Log.w("ExperimentActivity", "Failed to send trigger for state: $state")
+                            eventLogger.logError("Failed to send trigger for state: $state")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("ExperimentActivity", "Error sending trigger: ${e.message}", e)
+                    eventLogger.logError("Error sending trigger: ${e.message}")
+                }
             }
         }
+        
+        // Update battery status on state change
+        updateBatteryStatus()
         
         when (state) {
             ExperimentState.BLOCK_START -> {
@@ -456,6 +488,58 @@ class ExperimentActivity : BaseExperimentActivity() {
         Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
     }
     
+    /**
+     * Show error dialog with recovery options
+     */
+    override fun showErrorDialog(title: String, message: String) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            try {
+                val dialog = AlertDialog.Builder(this@ExperimentActivity)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setCancelable(false)
+                    .setPositiveButton("Continue") { _, _ ->
+                        // Reset error count and continue
+                        errorCount = 0
+                        recoveryAttempted = true
+                        
+                        // Log recovery attempt
+                        eventLogger.logEvent(
+                            EventType.SYSTEM_RECOVERY,
+                            details = mapOf("action" to "continue", "error" to (lastError ?: "unknown"))
+                        )
+                        
+                        // Continue with next trial
+                        if (currentTrial < trialsPerBlock) {
+                            startNextTrial()
+                        } else {
+                            transitionToState(ExperimentState.BLOCK_END)
+                        }
+                    }
+                    .setNegativeButton("End Experiment") { _, _ ->
+                        // Log experiment abort
+                        eventLogger.logEvent(
+                            EventType.EXPERIMENT_ABORTED,
+                            details = mapOf("reason" to "user_decision_after_error", "error" to (lastError ?: "unknown"))
+                        )
+                        
+                        // Save logs before ending
+                        eventLogger.saveEvents()
+                        
+                        // End experiment
+                        transitionToState(ExperimentState.EXPERIMENT_END)
+                    }
+                    .create()
+                
+                dialog.show()
+            } catch (e: Exception) {
+                Log.e("ExperimentActivity", "Failed to show error dialog: ${e.message}", e)
+                // Fallback to toast
+                Toast.makeText(this@ExperimentActivity, "$title: $message", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    
     private fun updateTimeDisplay() {
         val elapsedMs = getElapsedExperimentTime()
         val seconds = (elapsedMs / 1000) % 60
@@ -463,6 +547,48 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         timeTextView.text = String.format("Time: %02d:%02d.%03d", 
             minutes, seconds, elapsedMs % 1000)
+        
+        // Update battery status every 5 seconds
+        if (seconds % 5 == 0L) {
+            updateBatteryStatus()
+        }
+    }
+    
+    /**
+     * Update battery status display
+     */
+    private fun updateBatteryStatus() {
+        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPct = level * 100 / scale.toFloat()
+        
+        val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
+                         status == BatteryManager.BATTERY_STATUS_FULL
+        
+        val batteryColor = when {
+            isCharging -> getColor(android.R.color.holo_blue_light)
+            batteryPct <= 10 -> getColor(android.R.color.holo_red_light)
+            batteryPct <= 20 -> getColor(android.R.color.holo_orange_light)
+            else -> getColor(android.R.color.holo_green_light)
+        }
+        
+        val chargingSymbol = if (isCharging) "⚡" else ""
+        
+        runOnUiThread {
+            batteryStatusTextView.text = String.format("Battery: %.0f%% %s", batteryPct, chargingSymbol)
+            batteryStatusTextView.setTextColor(batteryColor)
+            batteryStatusTextView.visibility = View.VISIBLE
+        }
+        
+        // Log critical battery level
+        if (batteryPct <= 10 && !isCharging) {
+            eventLogger.logEvent(
+                EventType.SYSTEM_WARNING,
+                details = mapOf("type" to "critical_battery", "level" to batteryPct.toInt())
+            )
+        }
     }
     
     /**
@@ -524,8 +650,21 @@ class ExperimentActivity : BaseExperimentActivity() {
     private fun startAudioRecording() {
         Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
         
+        // Check battery level before recording
+        if (batteryLevel <= 10) {
+            Log.w("ExperimentActivity", "Starting recording with very low battery: $batteryLevel%")
+            eventLogger.logEvent(
+                EventType.SYSTEM_WARNING,
+                details = mapOf("type" to "low_battery_recording", "level" to batteryLevel)
+            )
+        }
+        
         // Log recording start
-        eventLogger.logEvent(EventType.RECORDING_START)
+        eventLogger.logEvent(
+            EventType.RECORDING_START,
+            blockNumber = currentBlock,
+            trialNumber = currentTrial
+        )
         
         // Double-check permissions at runtime
         val micPermission = ContextCompat.checkSelfPermission(
@@ -538,6 +677,9 @@ class ExperimentActivity : BaseExperimentActivity() {
                 "Cannot record audio: microphone permission not granted",
                 Toast.LENGTH_LONG
             ).show()
+            
+            // Log permission error
+            eventLogger.logError("Microphone permission denied during recording")
             
             // Request permission again if needed
             requestPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
