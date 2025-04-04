@@ -22,6 +22,8 @@ import android.util.Log
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
+import dev.lucy.momentsintime.logging.EventLogger
+import dev.lucy.momentsintime.logging.EventType
 
 class ExperimentActivity : BaseExperimentActivity() {
     
@@ -54,6 +56,9 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var currentRecordingFile: File? = null
     private var permissionsGranted = false
     
+    // Event logger
+    private lateinit var eventLogger: EventLogger
+    
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -84,6 +89,10 @@ class ExperimentActivity : BaseExperimentActivity() {
             participantId = participantId,
             date = LocalDate.parse(dateString)
         )
+        
+        // Initialize event logger
+        eventLogger = EventLogger.initialize(this)
+        eventLogger.setExperimentInfo(participantId, dateString)
         
         // Initialize audio recorder
         audioRecorder = AudioRecorder(this)
@@ -201,8 +210,14 @@ class ExperimentActivity : BaseExperimentActivity() {
     override fun onStateChanged(state: ExperimentState) {
         super.onStateChanged(state)
         
+        // Log state change
+        eventLogger.logStateChange(state.name)
+        
         when (state) {
             ExperimentState.BLOCK_START -> {
+                // Log block start
+                eventLogger.logBlockEvent(EventType.BLOCK_START, currentBlock)
+                
                 // Automatically transition to first trial after a short delay
                 handler.postDelayed({
                     startNextTrial()
@@ -210,10 +225,10 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.TRIAL_VIDEO -> {
-                // Simulate video playback, then transition to fixation
-//                handler.postDelayed({
-//                    transitionToState(ExperimentState.FIXATION_DELAY)
-//                }, 3000)
+                // Log trial start
+                eventLogger.logTrialEvent(EventType.TRIAL_START, currentBlock, currentTrial)
+                
+                // Play video
                 playCurrentTrialVideo()
             }
             
@@ -228,11 +243,20 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.BLOCK_END -> {
+                // Log block end
+                eventLogger.logBlockEvent(EventType.BLOCK_END, currentBlock)
+                
                 // Show next button to proceed to next block
                 nextButton.isEnabled = true
             }
             
             ExperimentState.EXPERIMENT_END -> {
+                // Log experiment end
+                eventLogger.logEvent(EventType.EXPERIMENT_END)
+                
+                // Save all events
+                eventLogger.saveEvents()
+                
                 // Experiment complete
                 nextButton.isEnabled = false
                 nextButton.text = "Done"
@@ -245,6 +269,9 @@ class ExperimentActivity : BaseExperimentActivity() {
     private fun handleNextButtonClick() {
         when (experimentState.value) {
             ExperimentState.IDLE -> {
+                // Log experiment start
+                eventLogger.logEvent(EventType.EXPERIMENT_START)
+                
                 // Ensure system UI is hidden when experiment starts
                 hideSystemUI()
                 startNextBlock()
@@ -334,6 +361,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     
     override fun onVideoError(errorMessage: String) {
         super.onVideoError(errorMessage)
+        // Log error
+        eventLogger.logError("Video error: $errorMessage")
         Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
     }
     
@@ -405,6 +434,9 @@ class ExperimentActivity : BaseExperimentActivity() {
     private fun startAudioRecording() {
         Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
         
+        // Log recording start
+        eventLogger.logEvent(EventType.RECORDING_START)
+        
         // Double-check permissions at runtime
         val micPermission = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -439,6 +471,15 @@ class ExperimentActivity : BaseExperimentActivity() {
             onComplete = { file ->
                 currentRecordingFile = file
                 Log.d("ExperimentActivity", "Recording completed successfully: ${file.absolutePath}")
+                
+                // Log recording end
+                eventLogger.logRecordingEvent(
+                    EventType.RECORDING_END, 
+                    currentBlock, 
+                    currentTrial, 
+                    file.name
+                )
+                
                 runOnUiThread {
                     Toast.makeText(
                         this,
@@ -450,6 +491,10 @@ class ExperimentActivity : BaseExperimentActivity() {
             },
             onError = { error ->
                 Log.e("ExperimentActivity", "Recording error: $error")
+                
+                // Log error
+                eventLogger.logError("Recording error: $error")
+                
                 runOnUiThread {
                     Toast.makeText(
                         this,

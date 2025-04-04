@@ -174,6 +174,19 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             currentVideoName = videoName
             videoStartTime = SystemClock.elapsedRealtime()
             
+            // Log video start
+            try {
+                val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                logger.logVideoEvent(
+                    dev.lucy.momentsintime.logging.EventType.VIDEO_START,
+                    currentBlock,
+                    currentTrial,
+                    videoName
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error logging video start: ${e.message}")
+            }
+            
             // Get video resource ID
             val resourceId = resources.getIdentifier(
                 videoName, "raw", packageName
@@ -210,6 +223,19 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
         if (experimentState.value == ExperimentState.TRIAL_VIDEO) {
             videoDuration = SystemClock.elapsedRealtime() - videoStartTime
             Log.d(TAG, "Video ended: $currentVideoName, duration: $videoDuration ms")
+            
+            // Log video end
+            try {
+                val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
+                logger.logVideoEvent(
+                    dev.lucy.momentsintime.logging.EventType.VIDEO_END,
+                    currentBlock,
+                    currentTrial,
+                    currentVideoName ?: "unknown"
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error logging video end: ${e.message}")
+            }
             
             // Transition to fixation delay
             transitionToState(ExperimentState.FIXATION_DELAY)
