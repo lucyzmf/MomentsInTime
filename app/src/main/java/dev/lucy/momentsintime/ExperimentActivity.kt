@@ -304,26 +304,29 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
         }
         
-        // Update button state
+        // Update button visibility and state
         when (state) {
             ExperimentState.IDLE -> {
+                nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
                 nextButton.text = "Start"
             }
             
             ExperimentState.BLOCK_END -> {
+                nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
                 nextButton.text = "Next Block"
             }
             
             ExperimentState.EXPERIMENT_END -> {
+                nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
                 nextButton.text = "Finish"
             }
             
             else -> {
-                nextButton.isEnabled = false
-                nextButton.text = "Next"
+                // Hide the button during experiment trials
+                nextButton.visibility = View.GONE
             }
         }
     }
