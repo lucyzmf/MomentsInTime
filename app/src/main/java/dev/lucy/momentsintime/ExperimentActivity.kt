@@ -234,6 +234,9 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             
             ExperimentState.FIXATION_DELAY -> {
+                // Log fixation start
+                eventLogger.logEvent(EventType.FIXATION_START)
+
                 // Show fixation cross and start countdown
                 startFixationCountdown(config?.fixationDurationMs ?: 1000) // 1000ms delay
             }
