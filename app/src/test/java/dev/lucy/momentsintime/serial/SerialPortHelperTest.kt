@@ -88,7 +88,7 @@ class SerialPortHelperTest {
         every { mockUsbManager.openDevice(mockUsbDevice) } returns mockUsbConnection
         every { mockUsbSerialPort.open(mockUsbConnection) } just Runs
         every { mockUsbSerialPort.setParameters(any(), any(), any(), any()) } just Runs
-        every { mockUsbSerialPort.write(any(), any()) } returns 5 // Return number of bytes written
+        every { mockUsbSerialPort.write(any(), any()) } just Runs // Return number of bytes written
         every { mockUsbSerialPort.close() } just Runs
 
         // Create the helper with our mocked context

@@ -326,8 +326,8 @@ class SerialPortHelper(private val context: Context) {
      */
     fun cleanup() {
         try {
-            androidx.core.content.ContextCompat.unregisterReceiver(context, usbPermissionReceiver)
-            androidx.core.content.ContextCompat.unregisterReceiver(context, usbDetachReceiver)
+            context.unregisterReceiver(usbPermissionReceiver)
+            context.unregisterReceiver(usbDetachReceiver)
         } catch (e: Exception) {
             Log.e(TAG, "Error unregistering receivers: ${e.message}")
         }
