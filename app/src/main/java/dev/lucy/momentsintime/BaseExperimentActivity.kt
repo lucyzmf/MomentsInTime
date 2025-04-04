@@ -59,8 +59,8 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     protected var recoveryAttempted = false
     
     // Battery monitoring
-    private var batteryLevel = 100
-    private var isBatteryLow = false
+    protected var batteryLevel = 100
+    protected var isBatteryLow = false
     private val batteryReceiver = object : BroadcastReceiver() {
          override fun onReceive(context: Context, intent: Intent) {
             val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -70,8 +70,8 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
                              status == BatteryManager.BATTERY_STATUS_FULL
             
-            // Consider battery low if below 15% and not charging
-            val newLowBatteryState = batteryLevel < 15 && !isCharging
+            // Consider battery low if below 10% and not charging
+            val newLowBatteryState = batteryLevel < 10 && !isCharging
             
             // Only log if state changed
             if (newLowBatteryState != isBatteryLow) {
@@ -140,6 +140,23 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
         try {
             val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
             registerReceiver(batteryReceiver, filter)
+            
+            // Check battery level at start
+            val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            if (batteryStatus != null) {
+                val level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                batteryLevel = (level * 100 / scale.toFloat()).toInt()
+                val status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
+                                 status == BatteryManager.BATTERY_STATUS_FULL
+                
+                isBatteryLow = batteryLevel < 10 && !isCharging
+                
+                if (isBatteryLow) {
+                    Log.w(TAG, "Starting with low battery level: $batteryLevel%")
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to register battery receiver: ${e.message}")
         }

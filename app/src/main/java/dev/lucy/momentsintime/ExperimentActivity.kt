@@ -48,7 +48,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var fixationCrossTextView: TextView
     private lateinit var countdownTextView: TextView
     private lateinit var connectionStatusTextView: TextView
-    private lateinit var batteryStatusTextView: TextView
+    private lateinit var batteryWarningTextView: TextView
     
     private var participantId: Int = -1
     private var dateString: String = ""
@@ -251,6 +251,11 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         // Log state change with additional details
         eventLogger.logStateChange(state.name,)
+        
+        // Check if we need to show battery warning (only at experiment start)
+        if (state == ExperimentState.IDLE && isBatteryLow) {
+            showBatteryWarning()
+        }
 
         // Send trigger for state change if connected
         if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
@@ -280,8 +285,7 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
         }
         
-        // Update battery status on state change
-        updateBatteryStatus()
+        // No battery status updates on state change
         
         when (state) {
             ExperimentState.BLOCK_START -> {
@@ -540,46 +544,33 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         timeTextView.text = String.format("Time: %02d:%02d.%03d", 
             minutes, seconds, elapsedMs % 1000)
-        
-        // Update battery status every 5 seconds
-        if (seconds % 5 == 0L) {
-            updateBatteryStatus()
-        }
     }
     
     /**
-     * Update battery status display
+     * Show battery warning if battery is low at experiment start
      */
-    private fun updateBatteryStatus() {
-        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val batteryPct = level * 100 / scale.toFloat()
-        
-        val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
-                         status == BatteryManager.BATTERY_STATUS_FULL
-        
-        val batteryColor = when {
-            isCharging -> getColor(android.R.color.holo_blue_light)
-            batteryPct <= 10 -> getColor(android.R.color.holo_red_light)
-            batteryPct <= 20 -> getColor(android.R.color.holo_orange_light)
-            else -> getColor(android.R.color.holo_green_light)
-        }
-        
-        val chargingSymbol = if (isCharging) "⚡" else ""
-        
-        runOnUiThread {
-            batteryStatusTextView.text = String.format("Battery: %.0f%% %s", batteryPct, chargingSymbol)
-            batteryStatusTextView.setTextColor(batteryColor)
-            batteryStatusTextView.visibility = View.VISIBLE
-        }
-        
-        // Log critical battery level
-        if (batteryPct <= 10 && !isCharging) {
-            eventLogger.logEvent(
-                EventType.BATTERY_WARNING,
-            )
+    private fun showBatteryWarning() {
+        if (isBatteryLow) {
+            val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || 
+                             status == BatteryManager.BATTERY_STATUS_FULL
+            
+            val chargingSymbol = if (isCharging) "⚡" else ""
+            
+            runOnUiThread {
+                batteryWarningTextView.text = String.format("WARNING: Low Battery: %d%% %s", batteryLevel, chargingSymbol)
+                batteryWarningTextView.setTextColor(getColor(android.R.color.holo_red_light))
+                batteryWarningTextView.visibility = View.VISIBLE
+                
+                // Auto-hide after 10 seconds
+                batteryWarningTextView.postDelayed({
+                    batteryWarningTextView.visibility = View.GONE
+                }, 10000)
+            }
+            
+            // Log battery warning
+            eventLogger.logEvent(EventType.BATTERY_WARNING)
         }
     }
     
@@ -641,7 +632,6 @@ class ExperimentActivity : BaseExperimentActivity() {
      */
     private fun startAudioRecording() {
         Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
-
         
         // Log recording start
         eventLogger.logEvent(
