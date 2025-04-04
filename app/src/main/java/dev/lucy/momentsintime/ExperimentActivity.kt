@@ -131,6 +131,9 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Initialize serial port helper
         serialPortHelper = SerialPortHelper(this)
         
+        // Make sure connection status is visible
+        connectionStatusTextView.visibility = View.VISIBLE
+        
         // Observe connection state
         lifecycleScope.launch {
             serialPortHelper.connectionState.collect { state ->
@@ -194,6 +197,12 @@ class ExperimentActivity : BaseExperimentActivity() {
             
             // Keep screen on during experiment
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            
+            // Make sure connection status is still visible after hiding system UI
+            handler.postDelayed({
+                connectionStatusTextView.visibility = View.VISIBLE
+                connectionStatusTextView.bringToFront()
+            }, 100)
         } catch (e: Exception) {
             Log.e("ExperimentActivity", "Error hiding system UI: ${e.message}", e)
         }
@@ -335,6 +344,8 @@ class ExperimentActivity : BaseExperimentActivity() {
      */
     private fun updateConnectionStatus(state: SerialPortHelper.ConnectionState) {
         runOnUiThread {
+            Log.d("ExperimentActivity", "Updating connection status to: $state")
+            
             val statusText = when (state) {
                 SerialPortHelper.ConnectionState.CONNECTED -> "USB: Connected ✓"
                 SerialPortHelper.ConnectionState.CONNECTING -> "USB: Connecting..."
@@ -354,8 +365,18 @@ class ExperimentActivity : BaseExperimentActivity() {
                 else -> getColor(android.R.color.holo_red_dark)
             }
             
-            connectionStatusTextView.text = statusText
-            connectionStatusTextView.setTextColor(textColor)
+            connectionStatusTextView.apply {
+                text = statusText
+                setTextColor(textColor)
+                visibility = View.VISIBLE
+                
+                // Ensure it's on top of other views
+                bringToFront()
+                
+                // Add a brief animation to draw attention
+                alpha = 0.7f
+                animate().alpha(1.0f).setDuration(300).start()
+            }
         }
     }
 
