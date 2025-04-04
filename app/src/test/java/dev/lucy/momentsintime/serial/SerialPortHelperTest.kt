@@ -62,7 +62,9 @@ class SerialPortHelperTest {
         every { any<Context>().getSystemService(Context.USB_SERVICE) } returns mockUsbManager
 
         // Setup default behavior for mocks
-        every { mockUsbManager.deviceList } returns mapOf("device1" to mockUsbDevice)
+        every { mockUsbManager.deviceList } returns HashMap<String, UsbDevice>().apply {
+            put("device1", mockUsbDevice)
+        }
         every { mockUsbDevice.deviceName } returns "Test Device"
         every { mockUsbDevice.productId } returns 1234
         every { mockUsbDevice.vendorId } returns 5678
@@ -86,7 +88,7 @@ class SerialPortHelperTest {
         every { mockUsbManager.openDevice(mockUsbDevice) } returns mockUsbConnection
         every { mockUsbSerialPort.open(mockUsbConnection) } just Runs
         every { mockUsbSerialPort.setParameters(any(), any(), any(), any()) } just Runs
-        every { mockUsbSerialPort.write(any(), any()) } returns 1
+        every { mockUsbSerialPort.write(any(), any()) } returns 5 // Return number of bytes written
         every { mockUsbSerialPort.close() } just Runs
 
         // Create the helper with our mocked context
