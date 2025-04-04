@@ -114,7 +114,8 @@ class ExperimentActivity : BaseExperimentActivity() {
             initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
             startButton.visibility = View.GONE
             nextButton.visibility = View.VISIBLE
-            startNextBlock()
+            // Don't start the block immediately, let the user press Next
+            transitionToState(ExperimentState.IDLE)
         }
         
         nextButton.setOnClickListener {
@@ -208,11 +209,10 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         when (state) {
             ExperimentState.BLOCK_START -> {
-                // Automatically transition to first trial after a delay
-//                handler.postDelayed({
-//                    startNextTrial()
-//                }, 2000)
-                startNextTrial()
+                // Automatically transition to first trial after a short delay
+                handler.postDelayed({
+                    startNextTrial()
+                }, 500)
             }
             
             ExperimentState.TRIAL_VIDEO -> {
@@ -288,6 +288,12 @@ class ExperimentActivity : BaseExperimentActivity() {
                 playerView.visibility = View.GONE
                 experimentContentTextView.visibility = View.GONE
                 fixationCrossLayout.visibility = View.VISIBLE
+            }
+            ExperimentState.IDLE -> {
+                playerView.visibility = View.GONE
+                experimentContentTextView.visibility = View.VISIBLE
+                fixationCrossLayout.visibility = View.GONE
+                experimentContentTextView.text = "Ready to start experiment"
             }
             else -> {
                 playerView.visibility = View.GONE
