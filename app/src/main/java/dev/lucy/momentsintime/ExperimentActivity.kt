@@ -109,14 +109,8 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Connect player to view
         playerView.player = player
         
-        // Set up button listeners
-        startButton.setOnClickListener {
-            initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
-            startButton.visibility = View.GONE
-            
-            // Start the first block immediately
-            startNextBlock()
-        }
+        // Initialize experiment
+        initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
         
         nextButton.setOnClickListener {
             handleNextButtonClick()
