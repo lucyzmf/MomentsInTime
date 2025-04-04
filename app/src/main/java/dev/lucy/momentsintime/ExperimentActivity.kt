@@ -125,9 +125,9 @@ class ExperimentActivity : BaseExperimentActivity() {
 
         // Status text views
         connectionStatusTextView = findViewById(R.id.connectionStatusTextView)
-        batteryWarningTextView = findViewById(R.id.batteryWarningTextView)
-        
+
         // Hide battery warning by default, only show if battery is low at start
+        batteryStatusTextView = findViewById(R.id.batteryStatusTextView)
         batteryStatusTextView.visibility = View.GONE
 
         // Connect player to view
