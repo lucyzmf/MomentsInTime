@@ -125,7 +125,6 @@ class ExperimentActivity : BaseExperimentActivity() {
 
         // Status text views
         connectionStatusTextView = findViewById(R.id.connectionStatusTextView)
-        batteryStatusTextView = findViewById(R.id.batteryStatusTextView)
 
         // Connect player to view
         playerView.player = player
@@ -251,12 +250,8 @@ class ExperimentActivity : BaseExperimentActivity() {
         super.onStateChanged(state)
         
         // Log state change with additional details
-        eventLogger.logStateChange(state.name, details = mapOf(
-            "block" to currentBlock,
-            "trial" to currentTrial,
-            "batteryLevel" to batteryLevel
-        ))
-        
+        eventLogger.logStateChange(state.name,)
+
         // Send trigger for state change if connected
         if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
             lifecycleScope.launch(Dispatchers.IO) {
@@ -506,7 +501,6 @@ class ExperimentActivity : BaseExperimentActivity() {
                         // Log recovery attempt
                         eventLogger.logEvent(
                             EventType.SYSTEM_RECOVERY,
-                            details = mapOf("action" to "continue", "error" to (lastError ?: "unknown"))
                         )
                         
                         // Continue with next trial
@@ -520,7 +514,6 @@ class ExperimentActivity : BaseExperimentActivity() {
                         // Log experiment abort
                         eventLogger.logEvent(
                             EventType.EXPERIMENT_ABORTED,
-                            details = mapOf("reason" to "user_decision_after_error", "error" to (lastError ?: "unknown"))
                         )
                         
                         // Save logs before ending
@@ -585,8 +578,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Log critical battery level
         if (batteryPct <= 10 && !isCharging) {
             eventLogger.logEvent(
-                EventType.SYSTEM_WARNING,
-                details = mapOf("type" to "critical_battery", "level" to batteryPct.toInt())
+                EventType.BATTERY_WARNING,
             )
         }
     }
@@ -649,21 +641,11 @@ class ExperimentActivity : BaseExperimentActivity() {
      */
     private fun startAudioRecording() {
         Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
-        
-        // Check battery level before recording
-        if (batteryLevel <= 10) {
-            Log.w("ExperimentActivity", "Starting recording with very low battery: $batteryLevel%")
-            eventLogger.logEvent(
-                EventType.SYSTEM_WARNING,
-                details = mapOf("type" to "low_battery_recording", "level" to batteryLevel)
-            )
-        }
+
         
         // Log recording start
         eventLogger.logEvent(
-            EventType.RECORDING_START,
-            blockNumber = currentBlock,
-            trialNumber = currentTrial
+            EventType.RECORDING_START
         )
         
         // Double-check permissions at runtime

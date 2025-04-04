@@ -49,6 +49,9 @@ enum class EventType {
     RECORDING_START,
     RECORDING_END,
     STATE_CHANGE,
+    SYSTEM_RECOVERY,
+    EXPERIMENT_ABORTED,
+    BATTERY_WARNING,
     ERROR
 }
 
@@ -97,39 +100,58 @@ class EventLogger private constructor(
     /**
      * Log an experiment event
      */
-    fun logEvent(event: ExperimentEvent) {
-        scope.launch {
-            events.add(event)
-            Log.d(TAG, "Logged event: ${event.type}")
-
-            // Save after certain important events
-            if (event.type in listOf(
-                    EventType.EXPERIMENT_START,
-                    EventType.BLOCK_START,
-                    EventType.FIXATION_START,
-                    EventType.TRIAL_START,
-                    EventType.FIXATION_END,
-                    EventType.TRIAL_END, 
-                    EventType.BLOCK_END,
-                    EventType.ERROR
-                )
-            ) {
-                saveEvents(is_intermediate = true)
-            }
-        }
-    }
+//    fun logEvent(event: ExperimentEvent) {
+//        scope.launch {
+//            events.add(event)
+//            Log.d(TAG, "Logged event: ${event.type}")
+//
+//            // Save after certain important events
+//            if (event.type in listOf(
+//                    EventType.EXPERIMENT_START,
+//                    EventType.BLOCK_START,
+//                    EventType.FIXATION_START,
+//                    EventType.TRIAL_START,
+//                    EventType.FIXATION_END,
+//                    EventType.TRIAL_END,
+//                    EventType.BLOCK_END,
+//                    EventType.ERROR
+//                )
+//            ) {
+//                saveEvents(is_intermediate = true)
+//            }
+//        }
+//    }
 
     /**
      * Log a simple event with just a type
      */
     fun logEvent(type: EventType) {
         scope.launch {
-            logEvent(
+            events.add(
                 ExperimentEvent(
                     type = type,
                     relativeTime = SystemClock.elapsedRealtime() - experimentStartTime
+                ))
+            Log.d(TAG, "Logged event: $type")
+
+            // Save after certain important events
+            if (type in listOf(
+                    EventType.EXPERIMENT_START,
+                    EventType.BLOCK_START,
+                    EventType.FIXATION_START,
+                    EventType.TRIAL_START,
+                    EventType.FIXATION_END,
+                    EventType.TRIAL_END,
+                    EventType.BLOCK_END,
+                    EventType.ERROR,
+                    EventType.BATTERY_WARNING,
+                    EventType.EXPERIMENT_ABORTED,
+                    EventType.SYSTEM_RECOVERY
                 )
-            )
+            ) {
+                saveEvents(is_intermediate = true)
+            }
+
         }
     }
 

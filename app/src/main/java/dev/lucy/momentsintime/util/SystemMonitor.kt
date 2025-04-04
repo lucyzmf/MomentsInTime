@@ -139,8 +139,7 @@ class SystemMonitor private constructor(private val context: Context) {
         try {
             val logger = EventLogger.getInstance()
             logger.logEvent(
-                EventType.SYSTEM_WARNING,
-                details = mapOf("type" to type, "value" to value)
+                EventType.BATTERY_WARNING,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to log system warning: ${e.message}")

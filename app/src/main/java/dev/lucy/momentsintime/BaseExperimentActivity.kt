@@ -1,7 +1,11 @@
 package dev.lucy.momentsintime
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
@@ -15,6 +19,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import dev.lucy.momentsintime.logging.EventType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +62,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     private var batteryLevel = 100
     private var isBatteryLow = false
     private val batteryReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
+         override fun onReceive(context: Context, intent: Intent) {
             val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             batteryLevel = (level * 100 / scale.toFloat()).toInt()
@@ -76,8 +81,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
                     try {
                         val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
                         logger.logEvent(
-                            dev.lucy.momentsintime.logging.EventType.SYSTEM_WARNING,
-                            details = mapOf("type" to "low_battery", "level" to batteryLevel)
+                            EventType.BATTERY_WARNING,
                         )
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to log battery warning: ${e.message}")
@@ -123,11 +127,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     private fun logStateTransition(state: ExperimentState) {
         try {
             val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
-            logger.logStateChange(state.name, details = mapOf(
-                "block" to currentBlock,
-                "trial" to currentTrial,
-                "elapsedTime" to getElapsedExperimentTime()
-            ))
+            logger.logStateChange(state.name)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to log state transition: ${e.message}")
         }
