@@ -52,7 +52,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     
     private var participantId: Int = -1
     private var dateString: String = ""
-    private var config: ExperimentConfig.Standard? = null
+    var config: ExperimentConfig.Standard? = null
     private var availableVideos: List<String> = emptyList()
     
     private val handler = Handler(Looper.getMainLooper())
