@@ -53,6 +53,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var participantId: Int = -1
     private var dateString: String = ""
     private var config: ExperimentConfig.Standard? = null
+    private var availableVideos: List<String> = emptyList()
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
@@ -96,10 +97,18 @@ class ExperimentActivity : BaseExperimentActivity() {
         participantId = intent.getIntExtra("PARTICIPANT_ID", -1)
         dateString = intent.getStringExtra("DATE") ?: LocalDate.now().toString()
         
-        // Create experiment config
+        // Scan for available videos
+        val videoScanner = dev.lucy.momentsintime.util.VideoResourceScanner(this)
+        availableVideos = videoScanner.scanForVideos()
+        
+        // Log found videos
+        Log.d("ExperimentActivity", "Found ${availableVideos.size} videos: ${availableVideos.joinToString()}")
+        
+        // Create experiment config with dynamic video list
         config = ExperimentConfig.Standard(
             participantId = participantId,
-            date = LocalDate.parse(dateString)
+            date = LocalDate.parse(dateString),
+            videoNames = availableVideos
         )
         
         // Initialize audio recorder

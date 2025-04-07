@@ -301,7 +301,17 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
      * Get the video name for a specific trial index
      */
     protected open fun getVideoNameForTrial(trialIndex: Int): String {
-        return "video${trialIndex + 1}"
+        // Get video names from config if available
+        val config = (this as? ExperimentActivity)?.config
+        val videoNames = config?.videoNames
+        
+        return if (videoNames != null && videoNames.isNotEmpty()) {
+            // Use modulo to cycle through available videos if needed
+            videoNames[trialIndex % videoNames.size]
+        } else {
+            // Fallback to default naming pattern
+            "video${trialIndex + 1}"
+        }
     }
     
     /**
@@ -345,12 +355,22 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             
             if (resourceId == 0) {
                 Log.e(TAG, "Video resource not found: $videoName")
-                onVideoError("Video resource not found: $videoName")
-                return
+                
+                // Try to find any available video as fallback
+                val anyVideoId = findAnyAvailableVideo()
+                if (anyVideoId == 0) {
+                    onVideoError("Video resource not found: $videoName")
+                    return
+                } else {
+                    Log.w(TAG, "Using fallback video instead of: $videoName")
+                }
             }
             
+            // Use the found resource ID or fallback
+            val finalResourceId = if (resourceId == 0) findAnyAvailableVideo() else resourceId
+            
             // Create media item from raw resource
-            val videoUri = Uri.parse("android.resource://$packageName/$resourceId")
+            val videoUri = Uri.parse("android.resource://$packageName/$finalResourceId")
             val mediaItem = MediaItem.fromUri(videoUri)
             
             // Prepare and play the video
@@ -497,5 +517,29 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
             wakeLock?.release()
         }
         wakeLock = null
+    }
+    
+    /**
+     * Find any available video in the raw resources
+     * @return Resource ID of any available video, or 0 if none found
+     */
+    private fun findAnyAvailableVideo(): Int {
+        try {
+            // Try to find any video resource
+            val rawClass = Class.forName("${packageName}.R\$raw")
+            for (field in rawClass.declaredFields) {
+                val resourceName = field.name
+                if (resourceName.startsWith("video")) {
+                    val resourceId = resources.getIdentifier(resourceName, "raw", packageName)
+                    if (resourceId != 0) {
+                        Log.d(TAG, "Found fallback video: $resourceName")
+                        return resourceId
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error finding fallback video: ${e.message}", e)
+        }
+        return 0
     }
 }
