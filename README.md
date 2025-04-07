@@ -85,10 +85,3 @@ To extend the experiment with new features:
 
 The app saves detailed logs in the external storage directory under `logs/`. These logs can be used to diagnose issues and analyze experiment timing.
 
-## License
-
-[Insert license information here]
-
-## Contact
-
-[Insert contact information here]
