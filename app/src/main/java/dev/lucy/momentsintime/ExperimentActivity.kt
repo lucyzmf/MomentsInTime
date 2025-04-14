@@ -32,7 +32,7 @@ import java.io.File
 import java.time.LocalDate
 import dev.lucy.momentsintime.logging.EventLogger
 import dev.lucy.momentsintime.logging.EventType
-import dev.lucy.momentsintime.serial.SerialPortHelper
+import dev.lucy.momentsintime.usbserial.SerialPortHelper
 
 class ExperimentActivity : BaseExperimentActivity() {
     
