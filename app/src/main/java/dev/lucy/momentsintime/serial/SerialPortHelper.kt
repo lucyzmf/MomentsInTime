@@ -211,8 +211,16 @@ class SerialPortHelper(private val context: Context) {
                     initializeSerialService()
                 }
                 
-                // Connect using the SerialService
-                serialService?.connect(deviceAddress, BAUD_RATE)
+                // Create a SerialSocket and connect using the SerialService
+                val connection = usbManager.openDevice(device)
+                if (connection == null) {
+                    Log.e(TAG, "Could not open connection to device: ${device.deviceName}")
+                    _connectionState.value = ConnectionState.CONNECTION_FAILED
+                    return@launch
+                }
+                
+                val socket = dev.lucy.momentsintime.usbserial.SerialSocket(context, connection, driver.ports[0])
+                serialService?.connect(socket)
                 
                 // Update state
                 _connectionState.value = ConnectionState.CONNECTED
@@ -232,6 +240,17 @@ class SerialPortHelper(private val context: Context) {
      * Initialize the serial service and listener
      */
     private fun initializeSerialService() {
+        // Helper function to convert bytes to hex string
+        fun bytesToHex(bytes: ByteArray): String {
+            val hexChars = "0123456789ABCDEF"
+            val result = StringBuilder(bytes.size * 3)
+            for (b in bytes) {
+                result.append(hexChars[b.toInt() shr 4 and 0xF])
+                result.append(hexChars[b.toInt() and 0xF])
+                result.append(' ')
+            }
+            return result.toString().trim()
+        }
         // Create serial listener
         serialListener = object : dev.lucy.momentsintime.usbserial.SerialListener {
             override fun onSerialConnect() {
@@ -246,11 +265,14 @@ class SerialPortHelper(private val context: Context) {
             
             override fun onSerialRead(data: ByteArray) {
                 // We don't expect to receive data in this application
-                Log.d(TAG, "Received data: ${dev.lucy.momentsintime.usbserial.TextUtil.toHexString(data)}")
+                Log.d(TAG, "Received data: ${bytesToHex(data)}")
             }
             
             override fun onSerialRead(datas: ArrayDeque<ByteArray>) {
                 // Not used in this application
+                for (data in datas) {
+                    onSerialRead(data)
+                }
             }
             
             override fun onSerialIoError(e: Exception) {
