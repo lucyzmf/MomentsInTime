@@ -44,7 +44,7 @@ class SerialPortHelper(private val context: Context) {
     
     // Serial service connection
     private var serialService: SerialService? = null
-    private var serialListener: listener
+    private var serialListener: SerialListener? = null
     private var deviceAddress: String? = null
     
     // USB components
@@ -238,16 +238,30 @@ class SerialPortHelper(private val context: Context) {
      * Initialize the serial service and listener
      */
     private fun initializeSerialService() {
-        // Helper function to convert bytes to hex string
-        fun bytesToHex(bytes: ByteArray): String {
-            val hexChars = "0123456789ABCDEF"
-            val result = StringBuilder(bytes.size * 3)
-            for (b in bytes) {
-                result.append(hexChars[b.toInt() shr 4 and 0xF])
-                result.append(hexChars[b.toInt() and 0xF])
-                result.append(' ')
+        // Create a custom SerialListener implementation
+        serialListener = object : SerialListener {
+            override fun onSerialConnect() {
+                _connectionState.value = ConnectionState.CONNECTED
+                Log.d(TAG, "Serial connected")
             }
-            return result.toString().trim()
+
+            override fun onSerialConnectError(e: Exception) {
+                Log.e(TAG, "Serial connect error: ${e.message}")
+                _connectionState.value = ConnectionState.CONNECTION_FAILED
+            }
+
+            override fun onSerialRead(data: ByteArray) {
+                Log.d(TAG, "Serial data received: ${TextUtil.toHexString(data)}")
+            }
+
+            override fun onSerialRead(datas: ArrayDeque<ByteArray>) {
+                // Not used in this implementation
+            }
+
+            override fun onSerialIoError(e: Exception) {
+                Log.e(TAG, "Serial IO error: ${e.message}")
+                _connectionState.value = ConnectionState.ERROR
+            }
         }
         
         // Create and start serial service

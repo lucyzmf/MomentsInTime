@@ -164,7 +164,12 @@ class ExperimentActivity : BaseExperimentActivity() {
         }
         
         // Try to connect to a USB device
-        serialPortHelper.connectToFirstAvailable()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val connected = serialPortHelper.connectToFirstAvailable()
+            if (!connected) {
+                Log.w("ExperimentActivity", "No USB devices found for initial connection")
+            }
+        }
 
         nextButton.setOnClickListener {
             handleNextButtonClick()
@@ -270,31 +275,34 @@ class ExperimentActivity : BaseExperimentActivity() {
             showBatteryWarning()
         }
 
-        // Send trigger for state change if connected
-        if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val eventType = when (state) {
-                        ExperimentState.BLOCK_START -> EventType.BLOCK_START
-                        ExperimentState.TRIAL_VIDEO -> EventType.TRIAL_START
-                        ExperimentState.FIXATION_DELAY -> EventType.FIXATION_START
-                        ExperimentState.SPEECH_RECORDING -> EventType.RECORDING_START
-                        ExperimentState.BLOCK_END -> EventType.BLOCK_END
-                        ExperimentState.EXPERIMENT_END -> EventType.EXPERIMENT_END
-                        else -> null
-                    }
-                    
-                    eventType?.let {
+        // Send trigger for state change
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val eventType = when (state) {
+                    ExperimentState.BLOCK_START -> EventType.BLOCK_START
+                    ExperimentState.TRIAL_VIDEO -> EventType.TRIAL_START
+                    ExperimentState.FIXATION_DELAY -> EventType.FIXATION_START
+                    ExperimentState.SPEECH_RECORDING -> EventType.RECORDING_START
+                    ExperimentState.BLOCK_END -> EventType.BLOCK_END
+                    ExperimentState.EXPERIMENT_END -> EventType.EXPERIMENT_END
+                    else -> null
+                }
+                
+                eventType?.let {
+                    // Only attempt to send if connected
+                    if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
                         val success = serialPortHelper.sendEventTrigger(it)
                         if (!success) {
                             Log.w("ExperimentActivity", "Failed to send trigger for state: $state")
                             eventLogger.logError("Failed to send trigger for state: $state")
                         }
+                    } else {
+                        Log.d("ExperimentActivity", "Not sending trigger - USB not connected")
                     }
-                } catch (e: Exception) {
-                    Log.e("ExperimentActivity", "Error sending trigger: ${e.message}", e)
-                    eventLogger.logError("Error sending trigger: ${e.message}")
                 }
+            } catch (e: Exception) {
+                Log.e("ExperimentActivity", "Error sending trigger: ${e.message}", e)
+                eventLogger.logError("Error sending trigger: ${e.message}")
             }
         }
         
@@ -363,7 +371,9 @@ class ExperimentActivity : BaseExperimentActivity() {
                 eventLogger.logEvent(EventType.EXPERIMENT_START)
                 
                 // Send experiment start trigger
-                serialPortHelper.sendEventTrigger(EventType.EXPERIMENT_START)
+                lifecycleScope.launch(Dispatchers.IO) {
+                    serialPortHelper.sendEventTrigger(EventType.EXPERIMENT_START)
+                }
                 
                 // Ensure system UI is hidden when experiment starts
                 hideSystemUI()
@@ -387,6 +397,7 @@ class ExperimentActivity : BaseExperimentActivity() {
      * Update the connection status display
      */
     private fun updateConnectionStatus(state: SerialPortHelper.ConnectionState) {
+        // Always use runOnUiThread for UI updates
         runOnUiThread {
             Log.d("ExperimentActivity", "Updating connection status to: $state")
             
@@ -421,6 +432,12 @@ class ExperimentActivity : BaseExperimentActivity() {
                 alpha = 0.7f
                 animate().alpha(1.0f).setDuration(300).start()
             }
+            
+            // Log connection status changes
+            eventLogger.logEvent(
+                EventType.SYSTEM_STATUS,
+                details = mapOf("usbState" to state.name)
+            )
         }
     }
 
