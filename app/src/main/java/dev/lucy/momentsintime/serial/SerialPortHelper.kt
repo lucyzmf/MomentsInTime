@@ -9,9 +9,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.util.Log
-import com.hoho.android.usbserial.driver.UsbSerialDriver
-import com.hoho.android.usbserial.driver.UsbSerialPort
-import com.hoho.android.usbserial.driver.UsbSerialProber
+import dev.lucy.momentsintime.usbserial.CustomProber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,11 +45,14 @@ class SerialPortHelper(private val context: Context) {
         }
     }
     
+    // Serial service connection
+    private var serialService: dev.lucy.momentsintime.usbserial.SerialService? = null
+    private var serialListener: dev.lucy.momentsintime.usbserial.SerialListener? = null
+    private var deviceAddress: String? = null
+    
     // USB components
     private val usbManager: UsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
     private var usbDevice: UsbDevice? = null
-    private var usbConnection: UsbDeviceConnection? = null
-    private var usbSerialPort: UsbSerialPort? = null
     
     // Connection state
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
@@ -129,7 +130,7 @@ class SerialPortHelper(private val context: Context) {
      * @return List of available USB devices
      */
     fun scanForDevices(): List<UsbDevice> {
-        val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
+        val availableDrivers = CustomProber.getCustomProber().findAllDrivers(usbManager)
         val devices = mutableListOf<UsbDevice>()
         
         if (availableDrivers.isEmpty()) {
@@ -168,7 +169,7 @@ class SerialPortHelper(private val context: Context) {
      * @return true if a device was found and connection attempt started
      */
     fun connectToFirstAvailable(): Boolean {
-        val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager)
+        val availableDrivers = CustomProber.getCustomProber().findAllDrivers(usbManager)
         
         if (availableDrivers.isEmpty()) {
             Log.d(TAG, "No USB serial devices found")
@@ -194,50 +195,32 @@ class SerialPortHelper(private val context: Context) {
                 _connectionState.value = ConnectionState.CONNECTING
                 
                 // Find the driver for the device
-                val driver = UsbSerialProber.getDefaultProber().probeDevice(device)
+                val driver = CustomProber.getCustomProber().probeDevice(device)
                 if (driver == null) {
                     Log.e(TAG, "No driver found for device: ${device.deviceName}")
                     _connectionState.value = ConnectionState.DRIVER_NOT_FOUND
                     return@launch
                 }
                 
-                // Open a connection to the device
-                val connection = usbManager.openDevice(device)
-                if (connection == null) {
-                    Log.e(TAG, "Could not open connection to device: ${device.deviceName}")
-                    _connectionState.value = ConnectionState.CONNECTION_FAILED
-                    return@launch
+                // Store device reference
+                usbDevice = device
+                deviceAddress = device.deviceName
+                
+                // Initialize serial service if needed
+                if (serialService == null) {
+                    initializeSerialService()
                 }
                 
-                // Get the first port (most devices have just one)
-                val port = driver.ports[0]
+                // Connect using the SerialService
+                serialService?.connect(deviceAddress, BAUD_RATE)
                 
-                try {
-                    // Open and configure the port
-                    port.open(connection)
-                    port.setParameters(BAUD_RATE, UsbSerialPort.DATABITS_8, 
-                                      UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
-                    
-                    // Store references
-                    usbDevice = device
-                    usbConnection = connection
-                    usbSerialPort = port
-                    
-                    _connectionState.value = ConnectionState.CONNECTED
-                    Log.d(TAG, "Successfully connected to device: ${device.deviceName}")
-                    
-                    // Send a test byte to verify connection
-                    sendTriggerCode(0)
-                    
-                } catch (e: IOException) {
-                    Log.e(TAG, "Error opening serial port: ${e.message}")
-                    try {
-                        port.close()
-                    } catch (e2: IOException) {
-                        // Ignore
-                    }
-                    _connectionState.value = ConnectionState.CONNECTION_FAILED
-                }
+                // Update state
+                _connectionState.value = ConnectionState.CONNECTED
+                Log.d(TAG, "Successfully connected to device: ${device.deviceName}")
+                
+                // Send a test byte to verify connection
+                sendTriggerCode(0)
+                
             } catch (e: Exception) {
                 Log.e(TAG, "Error connecting to device: ${e.message}")
                 _connectionState.value = ConnectionState.CONNECTION_FAILED
@@ -246,19 +229,54 @@ class SerialPortHelper(private val context: Context) {
     }
     
     /**
+     * Initialize the serial service and listener
+     */
+    private fun initializeSerialService() {
+        // Create serial listener
+        serialListener = object : dev.lucy.momentsintime.usbserial.SerialListener {
+            override fun onSerialConnect() {
+                Log.d(TAG, "Serial connected")
+                _connectionState.value = ConnectionState.CONNECTED
+            }
+            
+            override fun onSerialConnectError(e: Exception) {
+                Log.e(TAG, "Serial connect error: ${e.message}")
+                _connectionState.value = ConnectionState.CONNECTION_FAILED
+            }
+            
+            override fun onSerialRead(data: ByteArray) {
+                // We don't expect to receive data in this application
+                Log.d(TAG, "Received data: ${dev.lucy.momentsintime.usbserial.TextUtil.toHexString(data)}")
+            }
+            
+            override fun onSerialRead(datas: ArrayDeque<ByteArray>) {
+                // Not used in this application
+            }
+            
+            override fun onSerialIoError(e: Exception) {
+                Log.e(TAG, "Serial IO error: ${e.message}")
+                _connectionState.value = ConnectionState.ERROR
+            }
+        }
+        
+        // Create and start serial service
+        serialService = dev.lucy.momentsintime.usbserial.SerialService()
+        serialService?.attach(serialListener)
+    }
+    
+    /**
      * Disconnect from the current USB device
      */
     fun disconnect() {
         scope.launch {
             try {
-                usbSerialPort?.close()
-            } catch (e: IOException) {
-                Log.e(TAG, "Error closing serial port: ${e.message}")
+                serialService?.disconnect()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error disconnecting serial port: ${e.message}")
             }
             
-            usbSerialPort = null
-            usbConnection = null
             usbDevice = null
+            deviceAddress = null
             
             _connectionState.value = ConnectionState.DISCONNECTED
             Log.d(TAG, "Disconnected from USB device")
@@ -278,13 +296,12 @@ class SerialPortHelper(private val context: Context) {
         
         return try {
             val buffer = byteArrayOf(code.toByte())
-            val port = usbSerialPort ?: return false
             
             scope.launch {
                 try {
-                    port.write(buffer, 1000)
+                    serialService?.write(buffer)
                     Log.d(TAG, "Sent trigger code: $code")
-                } catch (e: IOException) {
+                } catch (e: Exception) {
                     Log.e(TAG, "Error sending trigger code: ${e.message}")
                     _connectionState.value = ConnectionState.ERROR
                 }
@@ -333,6 +350,11 @@ class SerialPortHelper(private val context: Context) {
         }
         
         disconnect()
+        
+        // Detach listener and stop service
+        serialService?.detach()
+        serialListener = null
+        serialService = null
     }
     
     /**
