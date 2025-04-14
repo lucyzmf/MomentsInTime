@@ -291,8 +291,11 @@ class ExperimentActivity : BaseExperimentActivity() {
                 eventType?.let {
                     // Only attempt to send if connected
                     if (serialPortHelper.connectionState.value == SerialPortHelper.ConnectionState.CONNECTED) {
-                        val success = serialPortHelper.sendEventTrigger(it)
-                        if (!success) {
+                        val success = serialPortHelper.sendEventTrigger(eventType)
+                        if (success) {
+                            Log.d("ExperimentActivity", "Sent trigger for state: $state")
+                            eventLogger.logEvent(eventType)
+                        } else {
                             Log.w("ExperimentActivity", "Failed to send trigger for state: $state")
                             eventLogger.logError("Failed to send trigger for state: $state")
                         }
@@ -432,12 +435,7 @@ class ExperimentActivity : BaseExperimentActivity() {
                 alpha = 0.7f
                 animate().alpha(1.0f).setDuration(300).start()
             }
-            
-            // Log connection status changes
-            eventLogger.logEvent(
-                EventType.SYSTEM_STATUS,
-                details = mapOf("usbState" to state.name)
-            )
+
         }
     }
 

@@ -6,14 +6,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
 import android.util.Log
+import com.hoho.android.usbserial.driver.UsbSerialPort
+import com.hoho.android.usbserial.util.SerialInputOutputManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.util.concurrent.Executors
 
 /**
  * Helper class for managing USB serial port connections and sending trigger codes
@@ -43,20 +48,22 @@ class SerialPortHelper(private val context: Context) {
     }
     
     // Serial service connection
-    private var serialService: SerialService? = null
-    private var serialListener: SerialListener? = null
+    private var serialIoManager: SerialInputOutputManager? = null
     private var deviceAddress: String? = null
     
     // USB components
     private val usbManager: UsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
     private var usbDevice: UsbDevice? = null
-    
+    private var usbConnection: UsbDeviceConnection? = null
+    private var usbSerialPort: UsbSerialPort? = null
+
     // Connection state
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
     
     // Coroutine scope for async operations
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val executor = Executors.newSingleThreadExecutor()
     
     // Permission request pending intent
     private val permissionIntent = PendingIntent.getBroadcast(
@@ -204,25 +211,38 @@ class SerialPortHelper(private val context: Context) {
                 usbDevice = device
                 deviceAddress = device.deviceName
                 
-                // Initialize serial service if needed
-                if (serialService == null) {
-                    initializeSerialService()
-                }
-                
                 // Create a SerialSocket and connect using the SerialService
+                val availableDrivers = CustomProber.getCustomProber().findAllDrivers(usbManager)
+
                 val connection = usbManager.openDevice(device)
                 if (connection == null) {
                     Log.e(TAG, "Could not open connection to device: ${device.deviceName}")
                     _connectionState.value = ConnectionState.CONNECTION_FAILED
                     return@launch
                 }
-                
-                val socket = SerialSocket(context, connection, driver.ports[0])
-                serialService?.connect(socket)
-                
-                // Update state
-                _connectionState.value = ConnectionState.CONNECTED
-                Log.d(TAG, "Successfully connected to device: ${device.deviceName}")
+
+                val port = driver.ports[0]
+                // Open the port and configure it
+                try {
+                    port.open(connection)
+                    port.setParameters(9600, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
+                    port.dtr = true  // Enable DTR if needed for your device
+                    port.rts = true  // Enable RTS if needed for your device
+
+                    // Store the connection and port for later use
+                    usbConnection = connection
+                    usbSerialPort = port
+
+                    // Set up the serial I/O manager for background communication
+                    setupSerialIoManager(port)
+
+                } catch (e: IOException) {
+                    try {
+                        port.close()
+                    } catch (e2: IOException) {
+                        // Ignore
+                    }
+                }
                 
                 // Send a test byte to verify connection
                 sendTriggerCode(0)
@@ -237,57 +257,39 @@ class SerialPortHelper(private val context: Context) {
     /**
      * Initialize the serial service and listener
      */
-    private fun initializeSerialService() {
-        // Create a custom SerialListener implementation
-        serialListener = object : SerialListener {
-            override fun onSerialConnect() {
-                _connectionState.value = ConnectionState.CONNECTED
-                Log.d(TAG, "Serial connected")
+    // Set up the serial I/O manager for background communication
+    private fun setupSerialIoManager(port: UsbSerialPort) {
+        serialIoManager?.stop()
+
+        serialIoManager = SerialInputOutputManager(port, object : SerialInputOutputManager.Listener {
+            override fun onNewData(data: ByteArray) {
+                // Handle incoming data if needed
+                Log.d(TAG, "Received data: ${data.joinToString(", ") { it.toString() }}")
             }
 
-            override fun onSerialConnectError(e: Exception) {
-                Log.e(TAG, "Serial connect error: ${e.message}")
-                _connectionState.value = ConnectionState.CONNECTION_FAILED
+            override fun onRunError(e: Exception) {
+                Log.e(TAG, "Serial I/O error", e)
             }
+        })
 
-            override fun onSerialRead(data: ByteArray) {
-                Log.d(TAG, "Serial data received: ${TextUtil.toHexString(data)}")
-            }
+        // Start the manager in a separate thread
+        (serialIoManager as? Runnable)?.let {
+            executor.submit(it)
+        }    }
 
-            override fun onSerialRead(datas: ArrayDeque<ByteArray>) {
-                // Not used in this implementation
-            }
-
-            override fun onSerialIoError(e: Exception) {
-                Log.e(TAG, "Serial IO error: ${e.message}")
-                _connectionState.value = ConnectionState.ERROR
-            }
-        }
-        
-        // Create and start serial service
-        serialService = SerialService()
-        serialService?.attach(serialListener)
-    }
-    
     /**
      * Disconnect from the current USB device
      */
     fun disconnect() {
         scope.launch {
-            try {
-                serialService?.disconnect()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error disconnecting serial port: ${e.message}")
-            }
-            
             usbDevice = null
             deviceAddress = null
-            
+
             _connectionState.value = ConnectionState.DISCONNECTED
             Log.d(TAG, "Disconnected from USB device")
         }
     }
-    
+
     /**
      * Send a trigger code to the connected device
      * @param code The trigger code to send
@@ -304,7 +306,7 @@ class SerialPortHelper(private val context: Context) {
             
             scope.launch {
                 try {
-                    serialService?.write(buffer)
+                    usbSerialPort?.write(buffer, 1000)
                     Log.d(TAG, "Sent trigger code: $code")
                 } catch (e: Exception) {
                     Log.e(TAG, "Error sending trigger code: ${e.message}")
@@ -357,9 +359,22 @@ class SerialPortHelper(private val context: Context) {
         disconnect()
         
         // Detach listener and stop service
-        serialService?.detach()
-        serialListener = null
-        serialService = null
+        // Stop the I/O manager first
+        serialIoManager?.stop()
+        serialIoManager = null
+
+        usbSerialPort?.let {
+            try {
+                it.dtr = false
+                it.rts = false
+                it.close()
+            } catch (e: IOException) {
+                Log.e(TAG, "Error closing serial port", e)
+            }
+            usbSerialPort = null
+        }
+
+        usbConnection = null
     }
     
     /**

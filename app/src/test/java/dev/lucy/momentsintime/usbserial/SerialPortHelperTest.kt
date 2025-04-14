@@ -1,9 +1,6 @@
-package dev.lucy.momentsintime.serial
+package dev.lucy.momentsintime.usbserial
 
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbManager
@@ -26,8 +23,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowLooper
-import java.io.IOException
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [30])
