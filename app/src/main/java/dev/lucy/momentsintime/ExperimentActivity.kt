@@ -53,8 +53,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var participantId: Int = -1
     private var dateString: String = ""
     var config: ExperimentConfig.Standard? = null
-    private var videoQueue: List<String> = emptyList()
-    private lateinit var videoManager: dev.lucy.momentsintime.util.VideoManager
+    var videoQueue: List<String> = emptyList()
+    lateinit var videoManager: dev.lucy.momentsintime.util.VideoManager
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
