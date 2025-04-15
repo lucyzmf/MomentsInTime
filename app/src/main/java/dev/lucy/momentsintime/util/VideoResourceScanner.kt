@@ -30,7 +30,7 @@ class VideoResourceScanner(private val context: Context) {
                 val resourceName = field.name
                 // Assuming videos have names like "video1", "video2", etc.
                 // You can adjust this filter as needed
-                if (resourceName.startsWith("video")) {
+                if (resourceName.startsWith("vid")) {
                     videoNames.add(resourceName)
                     Log.d(TAG, "Found video resource: $resourceName")
                 }
