@@ -53,7 +53,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var participantId: Int = -1
     private var dateString: String = ""
     var config: ExperimentConfig.Standard? = null
-    private var availableVideos: List<String> = emptyList()
+    private var videoQueue: List<String> = emptyList()
+    private lateinit var videoManager: dev.lucy.momentsintime.util.VideoManager
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
@@ -97,19 +98,22 @@ class ExperimentActivity : BaseExperimentActivity() {
         participantId = intent.getIntExtra("PARTICIPANT_ID", -1)
         dateString = intent.getStringExtra("DATE") ?: LocalDate.now().toString()
         
-        // Scan for available videos
-        val videoScanner = dev.lucy.momentsintime.util.VideoResourceScanner(this)
-        availableVideos = videoScanner.scanForVideos()
+        // Initialize video manager and prepare video queue
+        videoManager = dev.lucy.momentsintime.util.VideoManager(this)
         
-        // Log found videos
-        Log.d("ExperimentActivity", "Found ${availableVideos.size} videos: ${availableVideos.joinToString()}")
-        
-        // Create experiment config with dynamic video list
+        // Create experiment config
         config = ExperimentConfig.Standard(
             participantId = participantId,
-            date = LocalDate.parse(dateString),
-            videoNames = availableVideos
+            date = LocalDate.parse(dateString)
         )
+        
+        // Prepare shuffled video queue
+        val blocks = config?.blocks ?: 2
+        val trialsPerBlock = config?.trialsPerBlock ?: 1
+        videoQueue = videoManager.prepareVideoQueue(blocks, trialsPerBlock)
+        
+        // Log prepared video queue
+        Log.d("ExperimentActivity", "Prepared video queue with ${videoQueue.size} videos: ${videoQueue.joinToString()}")
         
         // Initialize audio recorder
         audioRecorder = AudioRecorder(this)

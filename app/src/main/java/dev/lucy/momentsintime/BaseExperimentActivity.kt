@@ -292,26 +292,31 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
      * Play the video for the current trial
      */
     protected fun playCurrentTrialVideo() {
-        val videoIndex = (currentBlock - 1) * trialsPerBlock + (currentTrial - 1)
-        val videoName = getVideoNameForTrial(videoIndex)
+        val videoName = getVideoNameForCurrentTrial()
         playVideo(videoName)
     }
     
     /**
-     * Get the video name for a specific trial index
+     * Get the video name for the current trial
      */
-    protected open fun getVideoNameForTrial(trialIndex: Int): String {
-        // Get video names from config if available
-        val config = (this as? ExperimentActivity)?.config
-        val videoNames = config?.videoNames
-        
-        return if (videoNames != null && videoNames.isNotEmpty()) {
-            // Use modulo to cycle through available videos if needed
-            videoNames[trialIndex % videoNames.size]
-        } else {
-            // Fallback to default naming pattern
-            "video${trialIndex + 1}"
+    protected open fun getVideoNameForCurrentTrial(): String {
+        // Get video from the queue if available
+        val experimentActivity = this as? ExperimentActivity
+        if (experimentActivity != null) {
+            val videoQueue = experimentActivity.videoQueue
+            if (videoQueue.isNotEmpty()) {
+                return experimentActivity.videoManager.getVideoForTrial(
+                    videoQueue,
+                    currentBlock,
+                    currentTrial,
+                    trialsPerBlock
+                )
+            }
         }
+        
+        // Fallback to default naming pattern if no queue available
+        val videoIndex = (currentBlock - 1) * trialsPerBlock + (currentTrial - 1)
+        return "video${videoIndex + 1}"
     }
     
     /**
