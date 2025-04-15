@@ -139,8 +139,10 @@ class ExperimentActivity : BaseExperimentActivity() {
         batteryStatusTextView = findViewById(R.id.batteryStatusTextView)
         batteryStatusTextView.visibility = View.GONE
 
-        // Connect player to view
+        // Connect player to view and disable controls
         playerView.player = player
+        playerView.useController = false  // Disable the control panel
+        playerView.controllerAutoShow = false  // Prevent controls from showing automatically
         
         // Initialize experiment
         initializeExperiment(config?.blocks ?: 3, config?.trialsPerBlock ?: 5)
