@@ -236,6 +236,8 @@ class SerialPortHelper(private val context: Context) {
                     // Set up the serial I/O manager for background communication
                     setupSerialIoManager(port)
 
+                    _connectionState.value = ConnectionState.CONNECTED
+
                 } catch (e: IOException) {
                     try {
                         port.close()
