@@ -33,17 +33,17 @@ class SerialPortHelper(private val context: Context) {
         // Trigger codes for different event types
         object TriggerCode {
             const val EXPERIMENT_START = 1
-            const val EXPERIMENT_END = 2
+            const val EXPERIMENT_END = 200
             const val BLOCK_START = 10
-            const val BLOCK_END = 11
+            const val BLOCK_END = 15
             const val TRIAL_START = 20
-            const val TRIAL_END = 21
+            const val TRIAL_END = 25
             const val VIDEO_START = 30
-            const val VIDEO_END = 31
+            const val VIDEO_END = 35
             const val FIXATION_START = 40
-            const val FIXATION_END = 41
+            const val FIXATION_END = 45
             const val RECORDING_START = 50
-            const val RECORDING_END = 51
+            const val RECORDING_END = 55
         }
     }
     
@@ -343,6 +343,8 @@ class SerialPortHelper(private val context: Context) {
             dev.lucy.momentsintime.logging.EventType.RECORDING_END -> TriggerCode.RECORDING_END
             else -> return false // No trigger for other event types
         }
+
+        Log.d(TAG, "Sending trigger code: $triggerCode for event: $eventType")
         
         return sendTriggerCode(triggerCode)
     }

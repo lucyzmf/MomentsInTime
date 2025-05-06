@@ -304,9 +304,6 @@ class ExperimentActivity : BaseExperimentActivity() {
             try {
                 val eventType = when (state) {
                     ExperimentState.BLOCK_START -> EventType.BLOCK_START
-                    ExperimentState.TRIAL_VIDEO -> EventType.TRIAL_START
-                    ExperimentState.FIXATION_DELAY -> EventType.FIXATION_START
-                    ExperimentState.SPEECH_RECORDING -> EventType.RECORDING_START
                     ExperimentState.BLOCK_END -> EventType.BLOCK_END
                     ExperimentState.EXPERIMENT_END -> EventType.EXPERIMENT_END
                     else -> null
