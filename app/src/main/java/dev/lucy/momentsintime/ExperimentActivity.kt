@@ -59,7 +59,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var dateString: String = ""
     var config: ExperimentConfig.Standard? = null
     var videoQueue: List<String> = emptyList()
-    var videoManager: SessionVideoLoader = SessionVideoLoader(this)
+    private val videoLoader = SessionVideoLoader(this)
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
@@ -110,8 +110,7 @@ class ExperimentActivity : BaseExperimentActivity() {
             sessionNumber = intent.getIntExtra("SESSION_NUMBER", 1)
         )
         
-        // Initialize video loader and get videos for this session
-        val videoLoader = SessionVideoLoader(this)
+        // Load videos for current session from CSV
         videoQueue = videoLoader.loadVideosForSession(config?.sessionNumber ?: 1)
         
         // Validate we got enough videos
@@ -120,6 +119,9 @@ class ExperimentActivity : BaseExperimentActivity() {
             Log.e(TAG, "Not enough videos for session ${config?.sessionNumber}. Got ${videoQueue.size}, need $requiredVideos")
             throw IllegalStateException("Not enough videos for session")
         }
+        
+        // Log prepared video queue
+        Log.d(TAG, "Prepared video queue with ${videoQueue.size} videos: ${videoQueue.joinToString()}")
         
         // Log prepared video queue
         Log.d("ExperimentActivity", "Prepared video queue with ${videoQueue.size} videos: ${videoQueue.joinToString()}")
