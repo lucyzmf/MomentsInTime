@@ -65,7 +65,7 @@ class SessionVideoLoader(private val context: Context) {
 
             // shuffle order of video files
             videoFiles.shuffle()
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error loading videos for session $sessionNumber: ${e.message}", e)
         }

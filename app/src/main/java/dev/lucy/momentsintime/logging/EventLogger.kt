@@ -138,11 +138,6 @@ class EventLogger private constructor(
 
             // Save after certain important events
             if (type in listOf(
-                    EventType.EXPERIMENT_START,
-                    EventType.BLOCK_START,
-                    EventType.FIXATION_START,
-                    EventType.TRIAL_START,
-                    EventType.FIXATION_END,
                     EventType.TRIAL_END,
                     EventType.BLOCK_END,
                     EventType.ERROR,

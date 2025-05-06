@@ -15,7 +15,7 @@ sealed class ExperimentConfig {
         val participantId: Int,
         val date: LocalDate,
         val sessionNumber: Int = 1,
-        val blocks: Int = 2,
+        val blocks: Int = 4,
         val trialsPerBlock: Int = 3,
         val speechDurationMs: Long = 4000,
         val videoNames: List<String> = List(15) { "video${it + 1}" },
