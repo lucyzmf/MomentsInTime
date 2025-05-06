@@ -72,7 +72,9 @@ class AudioRecorder(private val context: Context) {
                 dev.lucy.momentsintime.logging.EventLogger.getInstance().getAudioDirectory()
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting audio directory from EventLogger, using default", e)
-                val dir = File(context.getExternalFilesDir(null), "audio")
+                val participantDir = File(context.getExternalFilesDir(null), "participant_$participantId")
+                val sessionDir = File(participantDir, "session_1") // Default to session 1 if logger fails
+                val dir = File(sessionDir, "audio")
                 if (!dir.exists()) {
                     dir.mkdirs()
                 }

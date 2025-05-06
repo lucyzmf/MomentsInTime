@@ -68,6 +68,7 @@ class EventLogger private constructor(
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
     private var participantId: Int = -1
+    private var sessionNumber: Int = 1
     private var sessionDate: String = ""
 
     companion object {
@@ -91,8 +92,9 @@ class EventLogger private constructor(
     /**
      * Set experiment metadata
      */
-    fun setExperimentInfo(participantId: Int, date: String) {
+    fun setExperimentInfo(participantId: Int, sessionNumber: Int, date: String) {
         this.participantId = participantId
+        this.sessionNumber = sessionNumber
         this.sessionDate = date
         Log.d(TAG, "Experiment start time set: $experimentStartTime")
     }
@@ -301,7 +303,9 @@ class EventLogger private constructor(
      * Ensure the logs directory exists
      */
     private fun ensureLogsDirectory(): File {
-        val logsDir = File(context.getExternalFilesDir(null), "logs")
+        val participantDir = File(context.getExternalFilesDir(null), "participant_$participantId")
+        val sessionDir = File(participantDir, "session_$sessionNumber")
+        val logsDir = File(sessionDir, "logs")
 
         if (!logsDir.exists()) {
             if (logsDir.mkdirs()) {
@@ -318,7 +322,9 @@ class EventLogger private constructor(
      * Get the audio directory
      */
     fun getAudioDirectory(): File {
-        val audioDir = File(context.getExternalFilesDir(null), "audio")
+        val participantDir = File(context.getExternalFilesDir(null), "participant_$participantId")
+        val sessionDir = File(participantDir, "session_$sessionNumber")
+        val audioDir = File(sessionDir, "audio")
 
         if (!audioDir.exists()) {
             if (audioDir.mkdirs()) {
