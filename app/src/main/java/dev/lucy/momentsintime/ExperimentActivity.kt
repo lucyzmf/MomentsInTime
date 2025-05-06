@@ -355,11 +355,21 @@ class ExperimentActivity : BaseExperimentActivity() {
                 // Log fixation start
                 eventLogger.logEvent(EventType.FIXATION_START)
 
+                // send trigger code
+                lifecycleScope.launch(Dispatchers.IO) {
+                    serialPortHelper.sendEventTrigger(EventType.FIXATION_START)
+                }
+
                 // Show fixation cross and start countdown
                 startFixationCountdown(config?.fixationDurationMs ?: 1000) // 1000ms delay
 
                 // log fixation end
                 eventLogger.logEvent(EventType.FIXATION_END)
+
+                // send trigger code
+                lifecycleScope.launch(Dispatchers.IO) {
+                    serialPortHelper.sendEventTrigger(EventType.FIXATION_END)
+                }
             }
             
             ExperimentState.SPEECH_RECORDING -> {
@@ -736,6 +746,11 @@ class ExperimentActivity : BaseExperimentActivity() {
         eventLogger.logEvent(
             EventType.RECORDING_START
         )
+
+        // send trigger code
+        lifecycleScope.launch(Dispatchers.IO) {
+            serialPortHelper.sendEventTrigger(EventType.RECORDING_START)
+        }
         
         // Double-check permissions at runtime
         val micPermission = ContextCompat.checkSelfPermission(
@@ -790,6 +805,11 @@ class ExperimentActivity : BaseExperimentActivity() {
                     currentTrial, 
                     file.name
                 )
+
+                // send trigger code
+                lifecycleScope.launch(Dispatchers.IO) {
+                    serialPortHelper.sendEventTrigger(EventType.RECORDING_END)
+                }
                 
                 runOnUiThread {
                     Toast.makeText(
