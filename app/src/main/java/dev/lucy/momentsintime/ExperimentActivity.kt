@@ -161,7 +161,11 @@ class ExperimentActivity : BaseExperimentActivity() {
 
         // Initialize event logger
         eventLogger = EventLogger.initialize(this, this.experimentStartTime)
-        eventLogger.setExperimentInfo(participantId, dateString)
+        eventLogger.setExperimentInfo(
+            participantId, 
+            config?.sessionNumber ?: 1,  // Default to session 1 if config is null
+            dateString
+        )
         
         // Initialize serial port helper
         serialPortHelper = SerialPortHelper(this)
