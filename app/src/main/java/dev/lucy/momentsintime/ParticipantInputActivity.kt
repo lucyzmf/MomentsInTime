@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -26,8 +27,8 @@ class ParticipantInputActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     ParticipantInputScreen(
-                        onStartExperiment = { participantId ->
-                            navigateToInstructions(participantId)
+                        onStartExperiment = { participantId, sessionNumber ->
+                            navigateToInstructions(participantId, sessionNumber)
                         }
                     )
                 }
