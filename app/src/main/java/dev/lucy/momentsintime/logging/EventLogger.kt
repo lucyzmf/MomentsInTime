@@ -138,8 +138,6 @@ class EventLogger private constructor(
 
             // Save after certain important events
             if (type in listOf(
-                    EventType.TRIAL_END,
-                    EventType.BLOCK_END,
                     EventType.ERROR,
                     EventType.BATTERY_WARNING,
                     EventType.EXPERIMENT_ABORTED,
@@ -239,6 +237,14 @@ class EventLogger private constructor(
                 )
             )
             Log.d(TAG, "Logged recording event: $type, block: $blockNumber, trial: $trialNumber, file: $audioFileName")
+
+            // save intermediate events
+            if (type in listOf(
+                    EventType.RECORDING_END
+                )
+            ) {
+                saveEvents(is_intermediate = true)
+            }
         }
     }
 
@@ -272,9 +278,8 @@ class EventLogger private constructor(
             mutex.withLock {
                 try {
                     val logsDir = ensureLogsDirectory()
-                    val timestamp = SimpleDateFormat("HHmmss", Locale.US).format(Date())
                     val prefix = if (is_intermediate) "intermediate_" else ""
-                    val fileName = "${prefix}p${participantId}_${sessionDate}_${timestamp}.json"
+                    val fileName = "${prefix}p${participantId}_${sessionDate}.json"
                     val logFile = File(logsDir, fileName)
 
                     // Create a copy of events to avoid concurrent modification
