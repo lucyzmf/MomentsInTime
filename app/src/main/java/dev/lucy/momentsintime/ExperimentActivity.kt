@@ -360,6 +360,9 @@ class ExperimentActivity : BaseExperimentActivity() {
 
                 // Show fixation cross and start countdown
                 startFixationCountdown(config?.fixationDurationMs ?: 1000) // 1000ms delay
+
+                // log fixation end
+                eventLogger.logEvent(EventType.FIXATION_END)
             }
             
             ExperimentState.SPEECH_RECORDING -> {
