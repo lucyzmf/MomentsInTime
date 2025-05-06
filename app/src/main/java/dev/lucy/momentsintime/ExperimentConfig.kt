@@ -18,7 +18,7 @@ sealed class ExperimentConfig {
         val trialsPerBlock: Int = 3,
         val speechDurationMs: Long = 3000,
         val videoNames: List<String> = List(15) { "video${it + 1}" },
-        val fixationDurationMs: Long = 1000,
+        val fixationDurationMs: Long = 2000,
     ) : ExperimentConfig()
     
     companion object {
