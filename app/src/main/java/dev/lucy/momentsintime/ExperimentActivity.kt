@@ -34,6 +34,7 @@ import java.time.LocalDate
 import dev.lucy.momentsintime.logging.EventLogger
 import dev.lucy.momentsintime.logging.EventType
 import dev.lucy.momentsintime.usbserial.SerialPortHelper
+import dev.lucy.momentsintime.util.SessionVideoLoader
 
 class ExperimentActivity : BaseExperimentActivity() {
     
@@ -53,12 +54,13 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var circularCountdownView: CircularCountdownView
     private lateinit var connectionStatusTextView: TextView
     private lateinit var batteryStatusTextView: TextView
-    
+
     private var participantId: Int = -1
     private var dateString: String = ""
     var config: ExperimentConfig.Standard? = null
     var videoQueue: List<String> = emptyList()
-    
+    var videoManager: SessionVideoLoader = SessionVideoLoader(this)
+
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
         override fun run() {
@@ -109,7 +111,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         )
         
         // Initialize video loader and get videos for this session
-        val videoLoader = dev.lucy.momentsintime.util.SessionVideoLoader(this)
+        val videoLoader = SessionVideoLoader(this)
         videoQueue = videoLoader.loadVideosForSession(config?.sessionNumber ?: 1)
         
         // Validate we got enough videos
