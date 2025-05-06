@@ -652,12 +652,8 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Calculate progress (0.0 to 1.0)
         val progress = remainingMs.toFloat() / totalMs
         
-        // Format as seconds with one decimal place
-        val remainingSeconds = remainingMs / 1000f
-        
-        // Update the circular countdown view
+        // Update the circular countdown view with progress only (no text)
         circularCountdownView.progress = progress
-        circularCountdownView.countdownText = String.format("%.1f", remainingSeconds)
     }
     
     /**

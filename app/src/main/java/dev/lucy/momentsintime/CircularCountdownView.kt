@@ -16,21 +16,14 @@ class CircularCountdownView @JvmOverloads constructor(
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 12f
+        strokeWidth = 16f
         color = Color.parseColor("#666666")
     }
     
     private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 12f
+        strokeWidth = 16f
         color = Color.parseColor("#DDDDDD")
-    }
-    
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        textSize = 48f
-        color = Color.parseColor("#666666")
-        textAlign = Paint.Align.CENTER
     }
     
     private val rectF = RectF()
@@ -42,11 +35,11 @@ class CircularCountdownView @JvmOverloads constructor(
             invalidate()
         }
     
-    // Text to display in the center
+    // Text to display in the center (not used anymore but kept for API compatibility)
     var countdownText: String = ""
         set(value) {
             field = value
-            invalidate()
+            // No invalidate needed since we don't display text
         }
     
     override fun onDraw(canvas: Canvas) {
@@ -72,11 +65,6 @@ class CircularCountdownView @JvmOverloads constructor(
         val sweepAngle = 360f * progress
         canvas.drawArc(rectF, -90f, sweepAngle, false, paint)
         
-        // Draw text in center if provided
-        if (countdownText.isNotEmpty()) {
-            val xPos = width / 2
-            val yPos = height / 2 - (textPaint.descent() + textPaint.ascent()) / 2
-            canvas.drawText(countdownText, xPos, yPos, textPaint)
-        }
+        // No text is drawn anymore
     }
 }
