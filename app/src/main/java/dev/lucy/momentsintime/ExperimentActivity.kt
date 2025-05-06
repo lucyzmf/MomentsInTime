@@ -46,6 +46,8 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var playerView: PlayerView
     private lateinit var experimentContentTextView: TextView
     private lateinit var microphoneImageView: ImageView
+    private lateinit var recordingContainer: View
+    private lateinit var recordingCountdownView: CircularCountdownView
     private lateinit var fixationCrossLayout: View
     private lateinit var fixationCrossTextView: TextView
     private lateinit var circularCountdownView: CircularCountdownView
@@ -132,7 +134,9 @@ class ExperimentActivity : BaseExperimentActivity() {
         nextButton = findViewById(R.id.nextButton)
         playerView = findViewById(R.id.playerView)
         experimentContentTextView = findViewById(R.id.experimentContentTextView)
+        recordingContainer = findViewById(R.id.recordingContainer)
         microphoneImageView = findViewById(R.id.microphoneImageView)
+        recordingCountdownView = findViewById(R.id.recordingCountdownView)
         
         // Initialize fixation cross views
         fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
@@ -481,10 +485,10 @@ class ExperimentActivity : BaseExperimentActivity() {
                 // Handle special case for speech recording
                 if (state == ExperimentState.SPEECH_RECORDING) {
                     experimentContentTextView.visibility = View.GONE
-                    microphoneImageView.visibility = View.VISIBLE
+                    recordingContainer.visibility = View.VISIBLE
                 } else {
                     experimentContentTextView.visibility = View.VISIBLE
-                    microphoneImageView.visibility = View.GONE
+                    recordingContainer.visibility = View.GONE
                     
                     // Update content text based on state
                     experimentContentTextView.text = when (state) {
@@ -667,6 +671,51 @@ class ExperimentActivity : BaseExperimentActivity() {
     }
     
     /**
+     * Start the recording countdown timer
+     * @param durationMs Total duration of the recording period in milliseconds
+     */
+    private fun startRecordingCountdown(durationMs: Long) {
+        val updateIntervalMs = 16L // Update at ~60fps for smooth animation
+        val totalSteps = durationMs / updateIntervalMs
+        var remainingSteps = totalSteps
+        
+        // Initial display
+        updateRecordingCountdownDisplay(durationMs, durationMs)
+        
+        // Create a repeating task to update the countdown
+        val countdownRunnable = object : Runnable {
+            override fun run() {
+                remainingSteps--
+                val remainingMs = remainingSteps * updateIntervalMs
+                
+                // Update the display
+                updateRecordingCountdownDisplay(remainingMs, durationMs)
+                
+                if (remainingSteps > 0) {
+                    // Schedule the next update
+                    handler.postDelayed(this, updateIntervalMs)
+                }
+            }
+        }
+        
+        // Start the countdown
+        handler.postDelayed(countdownRunnable, updateIntervalMs)
+    }
+    
+    /**
+     * Update the recording countdown display
+     * @param remainingMs Remaining time in milliseconds
+     * @param totalMs Total duration in milliseconds
+     */
+    private fun updateRecordingCountdownDisplay(remainingMs: Long, totalMs: Long) {
+        // Calculate progress (0.0 to 1.0)
+        val progress = remainingMs.toFloat() / totalMs
+        
+        // Update the circular countdown view
+        recordingCountdownView.progress = progress
+    }
+    
+    /**
      * Start audio recording for the current trial
      */
     private fun startAudioRecording() {
@@ -704,7 +753,14 @@ class ExperimentActivity : BaseExperimentActivity() {
         
         // Update UI to show recording state
         experimentContentTextView.visibility = View.GONE
-        microphoneImageView.visibility = View.VISIBLE
+        recordingContainer.visibility = View.VISIBLE
+        
+        // Reset countdown progress
+        recordingCountdownView.progress = 1.0f
+        
+        // Start countdown animation
+        val recordingDuration = config?.speechDurationMs ?: 3000
+        startRecordingCountdown(recordingDuration)
         
         // Start recording
         audioRecorder.startRecording(
