@@ -46,7 +46,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var experimentContentTextView: TextView
     private lateinit var fixationCrossLayout: View
     private lateinit var fixationCrossTextView: TextView
-    private lateinit var countdownTextView: TextView
+    private lateinit var circularCountdownView: CircularCountdownView
     private lateinit var connectionStatusTextView: TextView
     private lateinit var batteryStatusTextView: TextView
     
@@ -134,7 +134,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         // Initialize fixation cross views
         fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
         fixationCrossTextView = fixationCrossLayout.findViewById(R.id.fixationCrossTextView)
-        countdownTextView = fixationCrossLayout.findViewById(R.id.countdownTextView)
+        circularCountdownView = fixationCrossLayout.findViewById(R.id.circularCountdownView)
 
         // Status text views
         connectionStatusTextView = findViewById(R.id.connectionStatusTextView)
@@ -613,7 +613,7 @@ class ExperimentActivity : BaseExperimentActivity() {
      * @param durationMs Total duration of the fixation period in milliseconds
      */
     private fun startFixationCountdown(durationMs: Long) {
-        val updateIntervalMs = 100L // Update every 100ms for smooth countdown
+        val updateIntervalMs = 16L // Update at ~60fps for smooth animation
         val totalSteps = durationMs / updateIntervalMs
         var remainingSteps = totalSteps
         
@@ -649,16 +649,15 @@ class ExperimentActivity : BaseExperimentActivity() {
      * @param totalMs Total duration in milliseconds
      */
     private fun updateCountdownDisplay(remainingMs: Long, totalMs: Long) {
+        // Calculate progress (0.0 to 1.0)
+        val progress = remainingMs.toFloat() / totalMs
+        
         // Format as seconds with one decimal place
         val remainingSeconds = remainingMs / 1000f
-        countdownTextView.text = String.format("%.1f", remainingSeconds)
         
-        // Optional: Animate the text size based on remaining time
-        val progress = remainingMs.toFloat() / totalMs
-        val startSize = 24f
-        val endSize = 36f
-        val currentSize = startSize + (endSize - startSize) * (1 - progress)
-        countdownTextView.textSize = currentSize
+        // Update the circular countdown view
+        circularCountdownView.progress = progress
+        circularCountdownView.countdownText = String.format("%.1f", remainingSeconds)
     }
     
     /**
