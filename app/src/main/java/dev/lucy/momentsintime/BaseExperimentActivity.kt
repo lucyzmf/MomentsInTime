@@ -302,15 +302,13 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     protected open fun getVideoNameForCurrentTrial(): String {
         // Get video from the queue if available
         val experimentActivity = this as? ExperimentActivity
-        if (experimentActivity != null) {
-            val videoQueue = experimentActivity.videoQueue
-            if (videoQueue.isNotEmpty()) {
-                return experimentActivity.videoManager.getVideoForTrial(
-                    videoQueue,
-                    currentBlock,
-                    currentTrial,
-                    trialsPerBlock
-                )
+        if (experimentActivity != null && experimentActivity.videoQueue.isNotEmpty()) {
+            val index = (currentBlock - 1) * trialsPerBlock + (currentTrial - 1)
+            return if (index < experimentActivity.videoQueue.size) {
+                experimentActivity.videoQueue[index]
+            } else {
+                Log.e(TAG, "Video index out of bounds: $index, queue size: ${experimentActivity.videoQueue.size}")
+                experimentActivity.videoQueue.firstOrNull() ?: "video_fallback"
             }
         }
         
