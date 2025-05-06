@@ -289,8 +289,6 @@ class ExperimentActivity : BaseExperimentActivity() {
     }
     
     override fun onStateChanged(state: ExperimentState) {
-        super.onStateChanged(state)
-        
         // Log state change with additional details
 //        eventLogger.logStateChange(state.name,)
         
