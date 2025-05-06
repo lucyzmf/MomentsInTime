@@ -58,7 +58,6 @@ class ExperimentActivity : BaseExperimentActivity() {
     private var dateString: String = ""
     var config: ExperimentConfig.Standard? = null
     var videoQueue: List<String> = emptyList()
-    lateinit var videoManager: dev.lucy.momentsintime.util.VideoManager
     
     private val handler = Handler(Looper.getMainLooper())
     private val updateTimeRunnable = object : Runnable {
@@ -102,19 +101,23 @@ class ExperimentActivity : BaseExperimentActivity() {
         participantId = intent.getIntExtra("PARTICIPANT_ID", -1)
         dateString = intent.getStringExtra("DATE") ?: LocalDate.now().toString()
         
-        // Initialize video manager and prepare video queue
-        videoManager = dev.lucy.momentsintime.util.VideoManager(this)
-        
         // Create experiment config
         config = ExperimentConfig.Standard(
             participantId = participantId,
-            date = LocalDate.parse(dateString)
+            date = LocalDate.parse(dateString),
+            sessionNumber = intent.getIntExtra("SESSION_NUMBER", 1)
         )
         
-        // Prepare shuffled video queue
-        val blocks = config?.blocks ?: 2
-        val trialsPerBlock = config?.trialsPerBlock ?: 1
-        videoQueue = videoManager.prepareVideoQueue(blocks, trialsPerBlock)
+        // Initialize video loader and get videos for this session
+        val videoLoader = dev.lucy.momentsintime.util.SessionVideoLoader(this)
+        videoQueue = videoLoader.loadVideosForSession(config?.sessionNumber ?: 1)
+        
+        // Validate we got enough videos
+        val requiredVideos = (config?.blocks ?: 2) * (config?.trialsPerBlock ?: 1)
+        if (videoQueue.size < requiredVideos) {
+            Log.e(TAG, "Not enough videos for session ${config?.sessionNumber}. Got ${videoQueue.size}, need $requiredVideos")
+            throw IllegalStateException("Not enough videos for session")
+        }
         
         // Log prepared video queue
         Log.d("ExperimentActivity", "Prepared video queue with ${videoQueue.size} videos: ${videoQueue.joinToString()}")
