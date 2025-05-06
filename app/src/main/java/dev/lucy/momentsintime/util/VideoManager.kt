@@ -66,6 +66,49 @@ class VideoManager(private val context: Context) {
     }
     
     /**
+     * Prepares a shuffled queue of videos from a specific list
+     * @param videoList List of video file names to use
+     * @param totalBlocks Number of blocks in the experiment
+     * @param trialsPerBlock Number of trials per block
+     * @return List of video resource names in shuffled order
+     */
+    fun prepareVideoQueueFromList(videoList: List<String>, totalBlocks: Int, trialsPerBlock: Int): List<String> {
+        Log.d(TAG, "Preparing video queue from list of ${videoList.size} videos: ${videoList.joinToString()}")
+        
+        val totalVideosNeeded = totalBlocks * trialsPerBlock
+        
+        if (videoList.isEmpty()) {
+            Log.e(TAG, "No videos provided in list")
+            return emptyList()
+        }
+        
+        if (videoList.size < totalVideosNeeded) {
+            Log.w(TAG, "Not enough videos (${videoList.size}) for experiment " +
+                    "configuration ($totalVideosNeeded needed). Will reuse videos.")
+        }
+        
+        // Take the first N videos needed (or all if we don't have enough)
+        val videosToUse = if (videoList.size <= totalVideosNeeded) {
+            videoList
+        } else {
+            videoList.take(totalVideosNeeded)
+        }
+        
+        // Create the final queue with repetition if needed
+        val videoQueue = mutableListOf<String>()
+        
+        while (videoQueue.size < totalVideosNeeded) {
+            videoQueue.addAll(videosToUse)
+        }
+        
+        // Trim to exact size needed
+        val finalQueue = videoQueue.take(totalVideosNeeded)
+        
+        // Shuffle the queue
+        return finalQueue.shuffled(Random(System.currentTimeMillis()))
+    }
+    
+    /**
      * Gets the video for a specific block and trial
      * @param videoQueue The prepared video queue
      * @param block Current block number (1-based)
