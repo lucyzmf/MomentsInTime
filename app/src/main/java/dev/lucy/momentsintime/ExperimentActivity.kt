@@ -348,7 +348,7 @@ class ExperimentActivity : BaseExperimentActivity() {
             
             ExperimentState.TRIAL_VIDEO -> {
                 // Log trial start
-                eventLogger.logTrialEvent(EventType.TRIAL_START, currentBlock, currentTrial)
+//                eventLogger.logTrialEvent(EventType.TRIAL_START, currentBlock, currentTrial)
                 
                 // Play video
                 playCurrentTrialVideo()

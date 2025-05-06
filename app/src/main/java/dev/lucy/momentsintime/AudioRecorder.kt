@@ -159,9 +159,7 @@ class AudioRecorder(private val context: Context) {
                 writeAudioDataToFile(onError)
             }
             recordingThread?.start()
-            
-            // Start the actual recording
-            audioRecord?.startRecording()
+
             
             // Log recording start event
             try {
@@ -175,6 +173,8 @@ class AudioRecorder(private val context: Context) {
             } catch (e: Exception) {
                 Log.e(TAG, "Error logging recording start: ${e.message}", e)
             }
+            // Start the actual recording
+            audioRecord?.startRecording()
             
             // Schedule recording stop after the specified duration
             handler.postDelayed({
@@ -210,20 +210,6 @@ class AudioRecorder(private val context: Context) {
             audioRecord?.stop()
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping AudioRecord: ${e.message}", e)
-        }
-        
-        // Log recording end event
-        try {
-            outputFile?.let { file ->
-                dev.lucy.momentsintime.logging.EventLogger.getInstance().logRecordingEvent(
-                    dev.lucy.momentsintime.logging.EventType.RECORDING_END,
-                    -1, // We don't have block/trial info here
-                    -1,
-                    file.name
-                )
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error logging recording end: ${e.message}", e)
         }
         
         releaseResources()
