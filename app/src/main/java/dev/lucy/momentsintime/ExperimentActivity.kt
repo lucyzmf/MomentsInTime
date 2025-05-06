@@ -840,10 +840,13 @@ class ExperimentActivity : BaseExperimentActivity() {
      * Handle completion of recording
      */
     private fun handleRecordingComplete() {
-        if (currentTrial < trialsPerBlock) {
-            startNextTrial()
-        } else {
-            transitionToState(ExperimentState.BLOCK_END)
-        }
+        // Add 1 second delay before next trial/block
+        handler.postDelayed({
+            if (currentTrial < trialsPerBlock) {
+                startNextTrial()
+            } else {
+                transitionToState(ExperimentState.BLOCK_END)
+            }
+        }, 1000) // 1000ms = 1 second
     }
 }
