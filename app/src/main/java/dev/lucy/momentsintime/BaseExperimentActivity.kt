@@ -92,7 +92,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     }
     
     companion object {
-        private const val TAG = "BaseExperimentActivity"
+        internal const val TAG = "BaseExperimentActivity"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
