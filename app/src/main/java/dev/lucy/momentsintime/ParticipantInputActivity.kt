@@ -35,10 +35,11 @@ class ParticipantInputActivity : ComponentActivity() {
         }
     }
     
-    private fun navigateToInstructions(participantId: Int) {
+    private fun navigateToInstructions(participantId: Int, sessionNumber: Int) {
         val intent = Intent(this, InstructionActivity::class.java).apply {
             putExtra("PARTICIPANT_ID", participantId)
             putExtra("DATE", LocalDate.now().toString())
+            putExtra("SESSION_NUMBER", sessionNumber)
         }
         startActivity(intent)
     }
@@ -46,8 +47,9 @@ class ParticipantInputActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ParticipantInputScreen(onStartExperiment: (Int) -> Unit) {
+fun ParticipantInputScreen(onStartExperiment: (Int, Int) -> Unit) {
     var participantIdText by remember { mutableStateOf("") }
+    var sessionNumber by remember { mutableStateOf(1) }
     var isError by remember { mutableStateOf(false) }
     
     Column(
@@ -82,11 +84,63 @@ fun ParticipantInputScreen(onStartExperiment: (Int) -> Unit) {
                 .padding(bottom = 16.dp)
         )
         
+        // Session selection
+        Text(
+            text = "Session",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(start = 4.dp, bottom = 8.dp)
+        )
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Session 1 radio button
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { sessionNumber = 1 }
+            ) {
+                RadioButton(
+                    selected = sessionNumber == 1,
+                    onClick = { sessionNumber = 1 }
+                )
+                Text(
+                    text = "Session 1",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+            
+            // Session 2 radio button
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { sessionNumber = 2 }
+            ) {
+                RadioButton(
+                    selected = sessionNumber == 2,
+                    onClick = { sessionNumber = 2 }
+                )
+                Text(
+                    text = "Session 2",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+        
         Button(
             onClick = {
                 val participantId = participantIdText.toIntOrNull()
                 if (participantId != null && ExperimentConfig.isValidParticipantId(participantId)) {
-                    onStartExperiment(participantId)
+                    onStartExperiment(participantId, sessionNumber)
                 } else {
                     isError = true
                 }

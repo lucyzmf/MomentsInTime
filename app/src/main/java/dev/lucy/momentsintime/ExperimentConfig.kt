@@ -14,6 +14,7 @@ sealed class ExperimentConfig {
     data class Standard(
         val participantId: Int,
         val date: LocalDate,
+        val sessionNumber: Int = 1,
         val blocks: Int = 2,
         val trialsPerBlock: Int = 3,
         val speechDurationMs: Long = 4000,

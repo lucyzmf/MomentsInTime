@@ -148,6 +148,7 @@ class InstructionActivity : AppCompatActivity() {
         val intent = Intent(this, ExperimentActivity::class.java).apply {
             putExtra("PARTICIPANT_ID", participantId)
             putExtra("DATE", dateString)
+            putExtra("SESSION_NUMBER", intent.getIntExtra("SESSION_NUMBER", 1))
         }
         startActivity(intent)
         finish() // Close this activity for a smooth transition
