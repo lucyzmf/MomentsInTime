@@ -41,17 +41,28 @@ class SessionVideoLoader(private val context: Context) {
             // Skip header line if present
             var line = reader.readLine()
             
+            // Read header line to find session column index
+            val headerLine = line
+            val headers = headerLine.split(",").map { it.trim().lowercase() }
+            val sessionColumnIndex = headers.indexOf("session")
+            val fileNameColumnIndex = 0  // Assuming filename is always the first column
+            
+            if (sessionColumnIndex == -1) {
+                Log.e(TAG, "Session column not found in CSV header: $headerLine")
+                return emptyList()
+            }
+            
             // Read each line and filter by session number
             while (reader.readLine()?.also { line = it } != null) {
                 val columns = line.split(",")
                 
                 // Check if the line has enough columns and the session number matches
-                if (columns.size >= 2) {
-                    val fileSession = columns[1].trim().toIntOrNull()
+                if (columns.size > sessionColumnIndex) {
+                    val fileSession = columns[sessionColumnIndex].trim().toIntOrNull()
                     
                     if (fileSession == sessionNumber) {
                         // Add the video file name to the list
-                        val fileName = columns[0].trim()
+                        val fileName = columns[fileNameColumnIndex].trim()
                         videoFiles.add(fileName)
                     }
                 }
