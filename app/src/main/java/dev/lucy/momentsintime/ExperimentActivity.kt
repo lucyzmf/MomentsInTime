@@ -44,6 +44,7 @@ class ExperimentActivity : BaseExperimentActivity() {
     private lateinit var nextButton: Button
     private lateinit var playerView: PlayerView
     private lateinit var experimentContentTextView: TextView
+    private lateinit var microphoneImageView: ImageView
     private lateinit var fixationCrossLayout: View
     private lateinit var fixationCrossTextView: TextView
     private lateinit var circularCountdownView: CircularCountdownView
@@ -130,6 +131,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         nextButton = findViewById(R.id.nextButton)
         playerView = findViewById(R.id.playerView)
         experimentContentTextView = findViewById(R.id.experimentContentTextView)
+        microphoneImageView = findViewById(R.id.microphoneImageView)
         
         // Initialize fixation cross views
         fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
@@ -473,16 +475,23 @@ class ExperimentActivity : BaseExperimentActivity() {
             }
             else -> {
                 playerView.visibility = View.GONE
-                experimentContentTextView.visibility = View.VISIBLE
                 fixationCrossLayout.visibility = View.GONE
                 
-                // Update content text based on state
-                experimentContentTextView.text = when (state) {
-                    ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
-                    ExperimentState.SPEECH_RECORDING -> "Please describe what you saw"
-                    ExperimentState.BLOCK_END -> "Block $currentBlock Complete\n\nPress Next to continue"
-                    ExperimentState.EXPERIMENT_END -> "Experiment Complete\n\nThank you for participating"
-                    else -> "Experiment Content Area"
+                // Handle special case for speech recording
+                if (state == ExperimentState.SPEECH_RECORDING) {
+                    experimentContentTextView.visibility = View.GONE
+                    microphoneImageView.visibility = View.VISIBLE
+                } else {
+                    experimentContentTextView.visibility = View.VISIBLE
+                    microphoneImageView.visibility = View.GONE
+                    
+                    // Update content text based on state
+                    experimentContentTextView.text = when (state) {
+                        ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
+                        ExperimentState.BLOCK_END -> "Block $currentBlock Complete\n\nPress Next to continue"
+                        ExperimentState.EXPERIMENT_END -> "Experiment Complete\n\nThank you for participating"
+                        else -> "Experiment Content Area"
+                    }
                 }
             }
         }
@@ -693,7 +702,8 @@ class ExperimentActivity : BaseExperimentActivity() {
         }
         
         // Update UI to show recording state
-        experimentContentTextView.text = "Recording... Please describe what you saw"
+        experimentContentTextView.visibility = View.GONE
+        microphoneImageView.visibility = View.VISIBLE
         
         // Start recording
         audioRecorder.startRecording(
