@@ -127,7 +127,7 @@ abstract class BaseExperimentActivity : AppCompatActivity() {
     private fun logStateTransition(state: ExperimentState) {
         try {
             val logger = dev.lucy.momentsintime.logging.EventLogger.getInstance()
-            logger.logStateChange(state.name)
+//            logger.logStateChange(state.name)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to log state transition: ${e.message}")
         }

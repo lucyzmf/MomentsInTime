@@ -292,7 +292,7 @@ class ExperimentActivity : BaseExperimentActivity() {
         super.onStateChanged(state)
         
         // Log state change with additional details
-        eventLogger.logStateChange(state.name,)
+//        eventLogger.logStateChange(state.name,)
         
         // Check if we need to show battery warning (only at experiment start)
         if (state == ExperimentState.IDLE && isBatteryLow) {
