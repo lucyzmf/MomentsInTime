@@ -16,14 +16,14 @@ class CircularCountdownView @JvmOverloads constructor(
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 16f
-        color = Color.parseColor("#666666")
+        strokeWidth = 12f  // Slightly thinner for better visibility
+        color = Color.parseColor("#4CAF50")  // Green color for consistency
     }
     
     private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 16f
-        color = Color.parseColor("#DDDDDD")
+        strokeWidth = 12f
+        color = Color.parseColor("#E0E0E0")  // Lighter gray background
     }
     
     private val rectF = RectF()
@@ -47,14 +47,14 @@ class CircularCountdownView @JvmOverloads constructor(
         
         val width = width.toFloat()
         val height = height.toFloat()
-        val size = minOf(width, height) * 0.8f
+        val size = minOf(width, height) * 0.6f  // Consistent size for both states
         val strokeWidth = paint.strokeWidth
         
-        // Calculate the rectangle for the circle
-        val left = (width - size) / 2 + strokeWidth / 2
-        val top = (height - size) / 2 + strokeWidth / 2
-        val right = left + size - strokeWidth
-        val bottom = top + size - strokeWidth
+        // Calculate the rectangle for the circle - centered with consistent positioning
+        val left = (width - size) / 2
+        val top = (height - size) / 2
+        val right = left + size
+        val bottom = top + size
         
         rectF.set(left, top, right, bottom)
         
@@ -64,7 +64,5 @@ class CircularCountdownView @JvmOverloads constructor(
         // Draw progress arc (clockwise from top)
         val sweepAngle = 360f * progress
         canvas.drawArc(rectF, -90f, sweepAngle, false, paint)
-        
-        // No text is drawn anymore
     }
 }

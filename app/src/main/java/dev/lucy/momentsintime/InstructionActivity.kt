@@ -20,18 +20,37 @@ class InstructionActivity : AppCompatActivity() {
     private lateinit var startExperimentButton: Button
     private lateinit var pageIndicatorLayout: LinearLayout
     
+    data class InstructionPage(
+        val text: String,
+        val imageRes: Int?
+    )
+
     private val instructionPages = listOf(
-        "Welcome to the Brain Recording Experiment!\n\n" +
-        "This experiment will help us understand how the brain processes visual information.\n\n" +
-        "Please follow all instructions carefully.",
-        
-        "During the experiment, you will watch a series of short videos.\n\n" +
-        "After each video, you will be asked to describe what you saw.\n\n" +
-        "Speak clearly and naturally when describing the videos.",
-        
-        "The experiment consists of 3 blocks with 5 trials each.\n\n" +
-        "You will have 3 seconds to respond after each video.\n\n" +
-        "When you're ready, press the Start button to begin the experiment."
+        InstructionPage(
+            text = "Bienvenue dans l'expérience !\n\n" +
+                    "Dans cette tâche, vous allez regarder de courtes vidéos, puis nous dire ce qui s’est passé — un peu comme si vous racontiez une vidéo amusante que vous avez vue en ligne à un(e) ami(e) !" +
+                    "Il n’y a pas de bonnes ou de mauvaises réponses. Nous nous intéressons simplement à la manière dont vous décrivez naturellement ce que vous avez vu.\n\n" +
+                    "L'expérience est divisée en 40 blocs courts, et chaque bloc contient 10 vidéos. Vous pouvez faire une pause entre les blocs à tout moment.\n",
+            imageRes = null
+        ),
+        InstructionPage(
+            text = "Chaque essai suit cette séquence simple :\n" +
+                    "1. Regardez une vidéo de 4 secondes  2. Attendez 2 secondes (une courte pause)  3. Décrivez ce qui s’est passé — parlez à voix haute. \n" +
+                    "Essayez de décrire la vidéo avec vos propres mots, comme si vous en parliez à quelqu’un qui ne l’a pas vue.\n",
+            imageRes = R.raw.instruction_demo
+        ),
+        InstructionPage(
+            text = "Les descriptions pourraient ressembler à ceci :\n\n" +
+                    "1. Un homme en chemise verte joue d’une guitare noire\n" +
+                    "2. Un troupeau de vaches se promène sur une prairie\n" +
+                    "3. Quelqu’un frappe un arbre près du trottoir avec un bâton\n\n" +
+                    "Plus la description est détaillée, mieux c’est !",
+            imageRes = null
+        ),
+        InstructionPage(
+            text = "Lorsque vous êtes prêt(e), appuyez sur Démarrer pour commencer l’expérience.\n\n Bonne chance !",
+            imageRes = null
+        )
     )
     
     private var participantId: Int = -1

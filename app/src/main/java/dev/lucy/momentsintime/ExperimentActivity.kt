@@ -143,7 +143,6 @@ class ExperimentActivity : BaseExperimentActivity() {
         experimentContentTextView = findViewById(R.id.experimentContentTextView)
         recordingContainer = findViewById(R.id.recordingContainer)
         microphoneImageView = findViewById(R.id.microphoneImageView)
-        recordingCountdownView = findViewById(R.id.recordingCountdownView)
         
         // Initialize fixation cross views
         fixationCrossLayout = findViewById(R.id.fixationCrossLayout)
@@ -423,6 +422,10 @@ class ExperimentActivity : BaseExperimentActivity() {
                 // Close the app completely when experiment is done
                 finishAffinity()
             }
+
+            ExperimentState.SPEECH_RECORDING -> {
+                audioRecorder.stopRecording()
+            }
             
             else -> { /* No action needed */ }
         }
@@ -454,11 +457,16 @@ class ExperimentActivity : BaseExperimentActivity() {
                 SerialPortHelper.ConnectionState.PERMISSION_PENDING -> getColor(android.R.color.holo_blue_dark)
                 else -> getColor(android.R.color.holo_red_dark)
             }
-            
+
+            // only show text if not connected
+            val text_visibility = when (state) {
+                SerialPortHelper.ConnectionState.CONNECTED -> View.GONE
+                else -> View.VISIBLE
+            }
             connectionStatusTextView.apply {
                 text = statusText
                 setTextColor(textColor)
-                visibility = View.VISIBLE
+                visibility = text_visibility
                 
                 // Ensure it's on top of other views
                 bringToFront()
@@ -495,7 +503,7 @@ class ExperimentActivity : BaseExperimentActivity() {
                 playerView.visibility = View.GONE
                 experimentContentTextView.visibility = View.VISIBLE
                 fixationCrossLayout.visibility = View.GONE
-                experimentContentTextView.text = "Ready to start experiment"
+                experimentContentTextView.text = "Prêt(e) à commencer l’expérience"
             }
             else -> {
                 playerView.visibility = View.GONE
@@ -505,15 +513,16 @@ class ExperimentActivity : BaseExperimentActivity() {
                 if (state == ExperimentState.SPEECH_RECORDING) {
                     experimentContentTextView.visibility = View.GONE
                     recordingContainer.visibility = View.VISIBLE
+                    startMicAnimation()
                 } else {
                     experimentContentTextView.visibility = View.VISIBLE
                     recordingContainer.visibility = View.GONE
                     
                     // Update content text based on state
                     experimentContentTextView.text = when (state) {
-                        ExperimentState.BLOCK_START -> "Block $currentBlock Starting..."
-                        ExperimentState.BLOCK_END -> "Block $currentBlock Complete\n\nPress Next to continue"
-                        ExperimentState.EXPERIMENT_END -> "Experiment Complete\n\nThank you for participating"
+                        ExperimentState.BLOCK_START -> "Début du bloc $currentBlock"
+                        ExperimentState.BLOCK_END -> "Bloc $currentBlock terminé\n\nAppuyez sur Suivant pour continuer"
+                        ExperimentState.EXPERIMENT_END -> "Expérience terminée\n\nMerci de votre participation"
                         else -> "Experiment Content Area"
                     }
                 }
@@ -525,21 +534,27 @@ class ExperimentActivity : BaseExperimentActivity() {
             ExperimentState.IDLE -> {
                 nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
-                nextButton.text = "Start"
+                nextButton.text = "Démarrer"
             }
-            
+
             ExperimentState.BLOCK_END -> {
                 nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
-                nextButton.text = "Next Block"
+                nextButton.text = "Bloc suivant"
             }
-            
+
             ExperimentState.EXPERIMENT_END -> {
                 nextButton.visibility = View.VISIBLE
                 nextButton.isEnabled = true
-                nextButton.text = "Finish"
+                nextButton.text = "Terminer"
             }
-            
+
+            ExperimentState.SPEECH_RECORDING -> {
+                nextButton.visibility = View.VISIBLE
+                nextButton.isEnabled = true
+                nextButton.text = "Suivant"
+            }
+
             else -> {
                 // Hide the button during experiment trials
                 nextButton.visibility = View.GONE
@@ -690,65 +705,10 @@ class ExperimentActivity : BaseExperimentActivity() {
     }
     
     /**
-     * Start the recording countdown timer
-     * @param durationMs Total duration of the recording period in milliseconds
-     */
-    private fun startRecordingCountdown(durationMs: Long) {
-        val updateIntervalMs = 16L // Update at ~60fps for smooth animation
-        val totalSteps = durationMs / updateIntervalMs
-        var remainingSteps = totalSteps
-        
-        // Initial display
-        updateRecordingCountdownDisplay(durationMs, durationMs)
-        
-        // Create a repeating task to update the countdown
-        val countdownRunnable = object : Runnable {
-            override fun run() {
-                remainingSteps--
-                val remainingMs = remainingSteps * updateIntervalMs
-                
-                // Update the display
-                updateRecordingCountdownDisplay(remainingMs, durationMs)
-                
-                if (remainingSteps > 0) {
-                    // Schedule the next update
-                    handler.postDelayed(this, updateIntervalMs)
-                }
-            }
-        }
-        
-        // Start the countdown
-        handler.postDelayed(countdownRunnable, updateIntervalMs)
-    }
-    
-    /**
-     * Update the recording countdown display
-     * @param remainingMs Remaining time in milliseconds
-     * @param totalMs Total duration in milliseconds
-     */
-    private fun updateRecordingCountdownDisplay(remainingMs: Long, totalMs: Long) {
-        // Calculate progress (0.0 to 1.0)
-        val progress = remainingMs.toFloat() / totalMs
-        
-        // Update the circular countdown view
-        recordingCountdownView.progress = progress
-    }
-    
-    /**
      * Start audio recording for the current trial
      */
     private fun startAudioRecording() {
         Log.d("ExperimentActivity", "Starting audio recording, permissions granted: $permissionsGranted")
-        
-        // Log recording start
-        eventLogger.logEvent(
-            EventType.RECORDING_START
-        )
-
-        // send trigger code
-        lifecycleScope.launch(Dispatchers.IO) {
-            serialPortHelper.sendEventTrigger(EventType.RECORDING_START)
-        }
         
         // Double-check permissions at runtime
         val micPermission = ContextCompat.checkSelfPermission(
@@ -768,10 +728,8 @@ class ExperimentActivity : BaseExperimentActivity() {
             // Request permission again if needed
             requestPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
             
-            // Skip recording and move to next state after delay
-            handler.postDelayed({
-                handleRecordingComplete()
-            }, config?.speechDurationMs ?: 3000)
+            // Skip recording and move to next state
+            handleRecordingComplete()
             return
         }
         
@@ -779,19 +737,16 @@ class ExperimentActivity : BaseExperimentActivity() {
         experimentContentTextView.visibility = View.GONE
         recordingContainer.visibility = View.VISIBLE
         
-        // Reset countdown progress
-        recordingCountdownView.progress = 1.0f
-        
-        // Start countdown animation
-        val recordingDuration = config?.speechDurationMs ?: 3000
-        startRecordingCountdown(recordingDuration)
+        // send trigger code
+        lifecycleScope.launch(Dispatchers.IO) {
+            serialPortHelper.sendEventTrigger(EventType.RECORDING_START)
+        }
         
         // Start recording
         audioRecorder.startRecording(
             participantId = participantId,
             blockNumber = currentBlock,
             trialNumber = currentTrial,
-            durationMs = config?.speechDurationMs ?: 3000,
             onComplete = { file ->
                 currentRecordingFile = file
                 Log.d("ExperimentActivity", "Recording completed successfully: ${file.absolutePath}")
@@ -810,11 +765,11 @@ class ExperimentActivity : BaseExperimentActivity() {
                 }
                 
                 runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        "Recording saved: ${file.name}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+//                    Toast.makeText(
+//                        this,
+//                        "Recording saved: ${file.name}",
+//                        Toast.LENGTH_SHORT
+//                    ).show()
                     handleRecordingComplete()
                 }
             },
@@ -840,6 +795,7 @@ class ExperimentActivity : BaseExperimentActivity() {
      * Handle completion of recording
      */
     private fun handleRecordingComplete() {
+        stopMicAnimation()
         // Add 1 second delay before next trial/block
         handler.postDelayed({
             if (currentTrial < trialsPerBlock) {
@@ -848,5 +804,28 @@ class ExperimentActivity : BaseExperimentActivity() {
                 transitionToState(ExperimentState.BLOCK_END)
             }
         }, 1000) // 1000ms = 1 second
+    }
+
+    private fun startMicAnimation() {
+        microphoneImageView.animate()
+            .alpha(0.5f)
+            .setDuration(500)
+            .withEndAction {
+                microphoneImageView.animate()
+                    .alpha(1.0f)
+                    .setDuration(500)
+                    .withEndAction {
+                        if (experimentState.value == ExperimentState.SPEECH_RECORDING) {
+                            startMicAnimation() // Loop if still recording
+                        }
+                    }
+                    .start()
+            }
+            .start()
+    }
+
+    private fun stopMicAnimation() {
+        microphoneImageView.animate().cancel()
+        microphoneImageView.alpha = 1.0f
     }
 }

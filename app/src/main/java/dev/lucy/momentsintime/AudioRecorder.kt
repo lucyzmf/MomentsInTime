@@ -51,14 +51,30 @@ class AudioRecorder(private val context: Context) {
      * @param onComplete Callback when recording is complete
      * @param onError Callback when an error occurs
      */
+    private var onCompleteCallback: ((File) -> Unit)? = null
+    private var onErrorCallback: ((String) -> Unit)? = null
+    private val SAFETY_TIMEOUT = 120_000L // 2 minutes
+//    private var safetyTimer: Timer? = null
+
     fun startRecording(
         participantId: Int,
         blockNumber: Int,
         trialNumber: Int,
-        durationMs: Long,
         onComplete: (File) -> Unit,
         onError: (String) -> Unit
     ) {
+        this.onCompleteCallback = onComplete
+        this.onErrorCallback = onError
+//        safetyTimer = Timer().apply {
+//            schedule(object : TimerTask() {
+//                override fun run() {
+//                    if (isRecording) {
+//                        Log.w(TAG, "Safety timeout triggered")
+//                        stopRecording()
+//                    }
+//                }
+//            }, SAFETY_TIMEOUT)
+//        }
         if (isRecording) {
             onError("Recording already in progress")
             return
@@ -176,17 +192,7 @@ class AudioRecorder(private val context: Context) {
             // Start the actual recording
             audioRecord?.startRecording()
             
-            // Schedule recording stop after the specified duration
-            handler.postDelayed({
-                stopRecording()
-                outputFile?.let { file ->
-                    if (file.exists() && file.length() > 0) {
-                        onComplete(file)
-                    } else {
-                        onError("Recording file is empty or does not exist")
-                    }
-                } ?: onError("Output file is null")
-            }, durationMs)
+            // Recording will be manually stopped by user
             
             Log.d(TAG, "Started recording to ${outputFile?.absolutePath}")
         } catch (e: Exception) {
@@ -200,20 +206,28 @@ class AudioRecorder(private val context: Context) {
      * Stop the current recording
      */
     fun stopRecording() {
-        if (!isRecording) {
-            return
-        }
+        if (!isRecording) return
         
         isRecording = false
+//        safetyTimer?.cancel()
         
         try {
             audioRecord?.stop()
+            outputFile?.let { file ->
+                if (file.exists() && file.length() > 0) {
+                    updateWavHeader(file)
+                    onCompleteCallback?.invoke(file)
+                } else {
+                    onErrorCallback?.invoke("Recording file is empty")
+                }
+            } ?: onErrorCallback?.invoke("Output file is null")
         } catch (e: Exception) {
-            Log.e(TAG, "Error stopping AudioRecord: ${e.message}", e)
+            Log.e(TAG, "Error stopping recording", e)
+            onErrorCallback?.invoke("Error stopping recording: ${e.message}")
+        } finally {
+            releaseResources()
+            Log.d(TAG, "Stopped recording")
         }
-        
-        releaseResources()
-        Log.d(TAG, "Stopped recording")
     }
     
     /**
